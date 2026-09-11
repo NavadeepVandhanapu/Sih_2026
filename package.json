@@ -1,0 +1,19 @@
+{
+  "name": "sih-legal-metrology",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n \"API,WEB\" -c \"cyan,magenta\" \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "dev:api": "npm run dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "build": "npm run build -w packages/compliance-engine && npm run build -w apps/api && npm run build -w apps/web",
+    "seed": "npm run seed -w apps/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

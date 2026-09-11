@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#065f46" />
+      <stop offset="50%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+  </defs>
+
+  <rect width="600" height="800" rx="20" fill="url(#bgGrad2)" />
+  <rect x="25" y="25" width="550" height="750" rx="14" fill="#ffffff" fill-opacity="0.98" stroke="#10b981" stroke-width="4" />
+
+  <!-- Corrected Badge -->
+  <rect x="360" y="35" width="190" height="28" rx="14" fill="#10b981" />
+  <text x="455" y="54" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">CORRECTED ARTWORK v2</text>
+
+  <!-- Top Brand Banner -->
+  <rect x="45" y="70" width="510" height="75" rx="10" fill="#78350f" />
+  <text x="300" y="112" font-family="Arial, sans-serif" font-size="30" font-weight="900" fill="#fef3c7" text-anchor="middle" letter-spacing="2">APEX DELIGHT</text>
+  <text x="300" y="134" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#fde68a" text-anchor="middle">VANILLA CREAM BISCUITS</text>
+
+  <!-- Legal Metrology Declarations Panel -->
+  <rect x="45" y="160" width="510" height="590" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="2" />
+  <rect x="45" y="160" width="510" height="32" rx="6" fill="#14532d" />
+  <text x="60" y="182" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#ffffff">REVISED MANDATORY STATUTORY DECLARATIONS</text>
+
+  <!-- Declarations content -->
+  <text x="65" y="220" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0f172a">1. COMMODITY:</text>
+  <text x="210" y="220" font-family="Arial, sans-serif" font-size="15" fill="#334155">Apex Delight Cream Biscuits Vanilla</text>
+
+  <text x="65" y="260" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0f172a">2. MANUFACTURED BY:</text>
+  <text x="65" y="285" font-family="Arial, sans-serif" font-size="14" fill="#334155">Apex Foods Pvt. Ltd., Plot 42, Industrial Area, Sector 5,</text>
+  <text x="65" y="308" font-family="Arial, sans-serif" font-size="14" fill="#334155">Haridwar, Uttarakhand - 249403</text>
+
+  <line x1="65" y1="325" x2="535" y2="325" stroke="#bbf7d0" stroke-width="1.5" />
+
+  <!-- Net Quantity & MRP -->
+  <text x="65" y="355" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">3. NET QUANTITY:</text>
+  <text x="220" y="355" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#1e3a8a">200 g</text>
+
+  <text x="65" y="395" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">4. MRP:</text>
+  <text x="220" y="395" font-family="Arial, sans-serif" font-size="17" font-weight="bold" fill="#047857">₹40.00 (incl. of all taxes)</text>
+
+  <text x="65" y="435" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0f172a">5. UNIT SALE PRICE:</text>
+  <text x="220" y="435" font-family="Arial, sans-serif" font-size="15" fill="#334155">₹0.20 per g</text>
+
+  <text x="65" y="475" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0f172a">6. DATE OF PACKING:</text>
+  <text x="220" y="475" font-family="Arial, sans-serif" font-size="15" fill="#334155">08/2026 | BATCH: APX-9824-R</text>
+
+  <line x1="65" y1="500" x2="535" y2="500" stroke="#bbf7d0" stroke-width="1.5" />
+
+  <!-- Added Consumer Care Section Highlighted -->
+  <rect x="65" y="520" width="470" height="90" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="2" />
+  <text x="80" y="545" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#15803d">✓ 7. CONSUMER CARE CELL (RECTIFIED):</text>
+  <text x="80" y="572" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0f172a">Toll-Free: 1800-200-8899 | Email: care@apexfoods.in</text>
+  <text x="80" y="594" font-family="Arial, sans-serif" font-size="12" fill="#334155">Address: Quality Redressal Executive, Apex Foods Pvt Ltd, Haridwar</text>
+
+  <text x="65" y="640" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#047857">✓ Minimum font height calibrated to 2.2 mm (Complies with Rule 7)</text>
+  <text x="65" y="680" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#475569">COUNTRY OF ORIGIN: INDIA</text>
+</svg>
