@@ -16,10 +16,26 @@ export type RuleStatus =
 export type RuleSeverity = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export interface BoundingBox {
-  x: number;      // percentage or pixel (0-100 or 0-w)
+  x: number;      // pixels or percentages
   y: number;
   width: number;
   height: number;
+}
+
+export interface OCRRegion {
+  text: string;
+  confidence: number;
+  boundingBox: BoundingBox;
+  polygon?: number[][];
+}
+
+export interface ImageQualityMetrics {
+  score: number;
+  blur_variance: number;
+  brightness: number;
+  contrast: number;
+  resolution_status: string;
+  is_usable: boolean;
 }
 
 export interface ExtractedDeclaration {
@@ -87,6 +103,10 @@ export interface FullScanAnalysis {
   fontAnalysis: FontAnalysisResult;
   summary: ComplianceSummary;
   ocrText: string;
+  ocrProvider?: string;
+  ocrRegions?: OCRRegion[];
+  imageQuality?: ImageQualityMetrics;
+  imageDimensions?: { width: number; height: number };
   fingerprint: {
     brand?: string;
     productName?: string;

@@ -279,6 +279,36 @@ export const ConsumerScan: React.FC = () => {
             </div>
           </div>
 
+          {/* Real OCR Telemetry & Image Quality Badge */}
+          {scanResult.analysis.imageQuality && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200/80 text-xs">
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Image Quality</span>
+                <span className="font-bold text-slate-800">
+                  Score: {Math.round(scanResult.analysis.imageQuality.score * 100)}% ({scanResult.analysis.imageQuality.resolution})
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Blur Variance</span>
+                <span className="font-bold text-slate-800 font-mono">
+                  {scanResult.analysis.imageQuality.blur}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Brightness / Contrast</span>
+                <span className="font-bold text-slate-800 font-mono">
+                  {scanResult.analysis.imageQuality.brightness} / {scanResult.analysis.imageQuality.contrast}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">OCR Engine</span>
+                <span className="font-bold text-blue-700 font-mono">
+                  EasyOCR ({scanResult.analysis.ocrRegions?.length || 0} regions)
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Core Declarations Checklist */}
           <div className="space-y-2">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
@@ -388,6 +418,7 @@ export const ConsumerScan: React.FC = () => {
         imageUrl={previewUrl}
         rule={selectedRule}
         declaration={selectedDec}
+        imageDimensions={scanResult?.analysis.imageDimensions}
       />
 
       {/* Minimal Report Modal */}

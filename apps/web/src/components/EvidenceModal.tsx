@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, ShieldAlert, CheckCircle, ExternalLink, Info } from 'lucide-react';
-import { RuleEvaluation, ExtractedDeclaration } from '../types';
+import { RuleEvaluation, ExtractedDeclaration, BoundingBox } from '../types';
 
 interface EvidenceModalProps {
   isOpen: boolean;
@@ -8,6 +8,7 @@ interface EvidenceModalProps {
   imageUrl?: string;
   rule?: RuleEvaluation | null;
   declaration?: ExtractedDeclaration | null;
+  imageDimensions?: { width: number; height: number };
 }
 
 export const EvidenceModal: React.FC<EvidenceModalProps> = ({
@@ -16,8 +17,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({
   imageUrl,
   rule,
   declaration,
+  imageDimensions,
 }) => {
   if (!isOpen) return null;
+
+  const box: BoundingBox | undefined = rule?.evidenceBox || declaration?.evidenceBox;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
@@ -49,14 +53,31 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({
             {/* Scanned Image Column */}
             <div className="flex flex-col items-center justify-center bg-slate-950 rounded-xl p-3 border border-slate-800">
               <span className="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">
-                Scanned Package Panel
+                Scanned Package Panel {box ? '(Bounding Box Highlighted)' : ''}
               </span>
-              <div className="relative w-full max-h-[420px] overflow-hidden rounded-lg flex items-center justify-center bg-slate-900">
-                <img
-                  src={imageUrl || '/samples/apex_biscuits.svg'}
-                  alt="Scanned Package"
-                  className="max-h-[400px] w-auto object-contain rounded"
-                />
+              <div className="relative w-full max-h-[420px] overflow-hidden rounded-lg flex items-center justify-center bg-slate-900 p-2">
+                <div className="relative inline-block max-h-[400px]">
+                  <img
+                    src={imageUrl || '/samples/apex_biscuits.svg'}
+                    alt="Scanned Package"
+                    className="max-h-[380px] w-auto object-contain rounded"
+                  />
+                  {box && imageDimensions && imageDimensions.width > 0 && imageDimensions.height > 0 && (
+                    <div
+                      className="absolute border-2 border-amber-400 bg-amber-400/25 rounded pointer-events-none shadow-[0_0_12px_rgba(251,191,36,0.6)] animate-pulse"
+                      style={{
+                        left: `${(box.x / imageDimensions.width) * 100}%`,
+                        top: `${(box.y / imageDimensions.height) * 100}%`,
+                        width: `${(box.width / imageDimensions.width) * 100}%`,
+                        height: `${(box.height / imageDimensions.height) * 100}%`,
+                      }}
+                    >
+                      <span className="absolute -top-5 left-0 bg-amber-400 text-slate-950 font-bold text-[10px] px-1.5 py-0.5 rounded shadow whitespace-nowrap">
+                        OCR Detection Region
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

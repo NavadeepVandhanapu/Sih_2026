@@ -58,6 +58,28 @@ export interface Product {
   sampleImageUrl?: string;
 }
 
+export interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface OCRRegion {
+  text: string;
+  confidence: number;
+  boundingBox: BoundingBox;
+  polygon?: number[][];
+}
+
+export interface ImageQualityMetrics {
+  score: number;
+  blur: number;
+  brightness: number;
+  contrast: number;
+  resolution: 'GOOD' | 'ADEQUATE' | 'POOR';
+}
+
 export interface ExtractedDeclaration {
   type: string;
   label: string;
@@ -65,6 +87,7 @@ export interface ExtractedDeclaration {
   confidence: number;
   rawSnippet?: string;
   notes?: string;
+  evidenceBox?: BoundingBox;
 }
 
 export interface RuleEvaluation {
@@ -78,6 +101,7 @@ export interface RuleEvaluation {
   expectedRequirement: string;
   explanation: string;
   evidenceSnippet?: string;
+  evidenceBox?: BoundingBox;
 }
 
 export interface FontAnalysis {
@@ -113,6 +137,9 @@ export interface ScanResult {
     fontAnalysis: FontAnalysis;
     summary: ComplianceSummary;
     ocrText: string;
+    ocrRegions?: OCRRegion[];
+    imageQuality?: ImageQualityMetrics;
+    imageDimensions?: { width: number; height: number };
     fingerprint: {
       brand?: string;
       productName?: string;

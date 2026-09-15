@@ -6,8 +6,10 @@ import {
   FullScanAnalysis,
   RuleEvaluationResult,
   RuleStatus,
+  OCRRegion,
+  ImageQualityMetrics,
 } from '../types';
-import { CURRENT_RULESET_VERSION, LEGAL_METROLOGY_RULES } from '../rules/definitions';
+import { CURRENT_RULESET_VERSION } from '../rules/definitions';
 import { DeclarationExtractor } from '../extractor/declarations';
 import { FontAnalyzer, FontCalibrationParams } from '../font/analyzer';
 
@@ -35,6 +37,7 @@ export class ComplianceEvaluator {
           ? 'Manufacturer identity statement located with legal premise details.'
           : 'Manufacturer declaration detected with lower confidence; postal verification recommended.',
         evidenceSnippet: mfg.rawSnippet,
+        evidenceBox: mfg.boundingBox,
       });
     } else {
       results.push({
@@ -64,6 +67,7 @@ export class ComplianceEvaluator {
         expectedRequirement: 'Standard metric unit (g, kg, ml, l, or count)',
         explanation: `Standard metric declaration verified: "${netQty.detectedValue}".`,
         evidenceSnippet: netQty.rawSnippet,
+        evidenceBox: netQty.boundingBox,
       });
     } else {
       results.push({
@@ -96,6 +100,7 @@ export class ComplianceEvaluator {
           ? 'Retail price properly formatted with mandatory "incl. of all taxes" clause.'
           : 'Retail price declared, but explicit "inclusive of all taxes" wording requires officer verification.',
         evidenceSnippet: mrp.rawSnippet,
+        evidenceBox: mrp.boundingBox,
       });
     } else {
       results.push({
@@ -125,6 +130,7 @@ export class ComplianceEvaluator {
         expectedRequirement: 'Month & year of manufacture or packing in MM/YYYY or Month YYYY',
         explanation: `Manufacturing / packing date identified: ${mfgDate.detectedValue}.`,
         evidenceSnippet: mfgDate.rawSnippet,
+        evidenceBox: mfgDate.boundingBox,
       });
     } else {
       results.push({
@@ -157,6 +163,7 @@ export class ComplianceEvaluator {
           ? 'Multi-channel consumer care contact details verified (phone and email detected).'
           : 'Partial consumer contact information located; full postal & digital channel verification recommended.',
         evidenceSnippet: care.rawSnippet,
+        evidenceBox: care.boundingBox,
       });
     } else {
       results.push({
@@ -186,9 +193,9 @@ export class ComplianceEvaluator {
         expectedRequirement: 'Unit sale price declared per g / ml / kg / L',
         explanation: `Unit sale price properly declared: "${usp.detectedValue}".`,
         evidenceSnippet: usp.rawSnippet,
+        evidenceBox: usp.boundingBox,
       });
     } else {
-      // Check if net quantity requires USP (e.g. > 1 unit/kg or standard commodity)
       results.push({
         ruleId: 'LM-RULE-006',
         ruleName: 'Unit Sale Price (USP)',
@@ -220,18 +227,22 @@ export class ComplianceEvaluator {
 
   public static analyzeScan(
     rawOcrText: string,
-    calibration?: FontCalibrationParams
+    calibration?: FontCalibrationParams,
+    ocrRegions?: OCRRegion[],
+    ocrProvider?: string,
+    imageQuality?: ImageQualityMetrics,
+    imageDimensions?: { width: number; height: number }
   ): FullScanAnalysis {
-    // 1. Extract Declarations
-    const declarations = DeclarationExtractor.extract(rawOcrText);
+    // 1. Extract Declarations with OCR Bounding Boxes
+    const declarations = DeclarationExtractor.extract(rawOcrText, ocrRegions);
 
     // 2. Perform Font & Readability Analysis
     const fontParams: FontCalibrationParams = {
       netQtyString: declarations.net_quantity?.detectedValue,
       packageHeightMm: calibration?.packageHeightMm,
       packageWidthMm: calibration?.packageWidthMm,
-      imageHeightPx: calibration?.imageHeightPx || 800,
-      imageWidthPx: calibration?.imageWidthPx || 600,
+      imageHeightPx: calibration?.imageHeightPx || imageDimensions?.height || 800,
+      imageWidthPx: calibration?.imageWidthPx || imageDimensions?.width || 600,
       measuredCharHeightPx: calibration?.measuredCharHeightPx || 22,
     };
     const fontAnalysis = FontAnalyzer.analyze(fontParams);
@@ -275,7 +286,6 @@ export class ComplianceEvaluator {
         'AI screening assistance only. Not a formal judicial or enforcement order under the Legal Metrology Act, 2009. Official action is subject to physical verification by authorized Legal Metrology Officers.',
     };
 
-    // Extract Product Fingerprint tokens
     const brandMatch = rawOcrText.match(/\b(Apex|GreenBasket|Nova|PureHarvest|Urban|Zenith|Patanjali|Britannia|Nestle|Dabur|ITC)\b/i);
     const prodMatch = rawOcrText.match(/(?:Biscuits|Chips|Oil|Atta|Juice|Soap|Detergent|Snacks|Tea|Coffee|Cereal)/i);
 
@@ -285,6 +295,10 @@ export class ComplianceEvaluator {
       fontAnalysis,
       summary,
       ocrText: rawOcrText,
+      ocrProvider: ocrProvider || 'PyTorch EasyOCR Neural Engine (v1.7)',
+      ocrRegions,
+      imageQuality,
+      imageDimensions,
       fingerprint: {
         brand: brandMatch ? brandMatch[0] : undefined,
         productName: prodMatch ? prodMatch[0] : undefined,

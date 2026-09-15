@@ -10,6 +10,8 @@ import {
   companies,
   products,
   scans,
+  scanImages,
+  ocrRegions,
   declarations,
   ruleEvaluations,
   complaints,
@@ -18,11 +20,16 @@ import {
   inspections,
   auditLogs,
 } from './db/schema.js';
-import { eq, desc, sql, and } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { ComplianceEvaluator, LEGAL_METROLOGY_RULES, CURRENT_RULESET_VERSION } from '@sih/compliance-engine';
 import { StorageService } from './services/storage.js';
 import { ReportService, ReportData } from './services/report.js';
+import { JwtService } from './services/jwt.js';
+import { authenticate, requireRole, checkCompanyAccess } from './middleware/auth.js';
+import { loginRateLimiter, scanRateLimiter, complaintRateLimiter } from './middleware/rateLimit.js';
+import { InputValidator } from './middleware/validate.js';
+import { OCRClient, PythonOCRResponse } from './services/ocrClient.js';
 
 initDatabase();
 StorageService.init();
@@ -34,15 +41,25 @@ const server = Fastify({
 });
 
 async function start() {
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
+
   await server.register(cors, {
-    origin: true,
+    origin: (origin, cb) => {
+      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+        cb(null, true);
+        return;
+      }
+      cb(new Error('Not allowed by CORS allowlist policy'), false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   await server.register(multipart, {
     limits: {
-      fileSize: 15 * 1024 * 1024, // 15 MB
+      fileSize: 10 * 1024 * 1024, // 10 MB limit
     },
   });
 
@@ -72,29 +89,42 @@ async function start() {
 // -------------------------------------------------------------
 
 server.post('/api/auth/login', async (request, reply) => {
+  const allowLimit = await loginRateLimiter(request, reply);
+  if (!allowLimit) return;
+
   const { email, password } = request.body as { email?: string; password?: string };
 
-  if (!email) {
-    return reply.status(400).send({ error: 'Email is required' });
+  if (!email || !password) {
+    return reply.status(400).send({ error: 'Both email and password are required' });
+  }
+
+  if (!InputValidator.isValidEmail(email)) {
+    return reply.status(400).send({ error: 'Invalid email address format' });
   }
 
   const user = db.select().from(users).where(eq(users.email, email.toLowerCase().trim())).get();
 
   if (!user) {
-    return reply.status(401).send({ error: 'Invalid email or demo account not found' });
+    return reply.status(401).send({ error: 'Invalid email or password' });
   }
 
-  // Check password or allow standard demo bypass for demo accounts
-  const isMatch = password ? await bcrypt.compare(password, user.passwordHash) : false;
-  if (!isMatch && password !== 'demo123') {
-    return reply.status(401).send({ error: 'Invalid password. (Use demo123 for demo accounts)' });
+  const isMatch = await bcrypt.compare(password, user.passwordHash);
+  if (!isMatch) {
+    return reply.status(401).send({ error: 'Invalid email or password' });
   }
 
-  // Get associated company if role is COMPANY
   let company = null;
   if (user.companyId) {
     company = db.select().from(companies).where(eq(companies.id, user.companyId)).get() || null;
   }
+
+  const token = JwtService.sign({
+    userId: user.id,
+    email: user.email,
+    role: user.role as any,
+    companyId: user.companyId,
+    name: user.name,
+  });
 
   return reply.send({
     user: {
@@ -108,11 +138,61 @@ server.post('/api/auth/login', async (request, reply) => {
       phone: user.phone,
       company,
     },
-    token: `demo-token-${user.id}-${Date.now()}`,
+    token,
   });
 });
 
-server.get('/api/auth/users', async (_request, reply) => {
+server.get('/api/auth/me', async (request, reply) => {
+  const userPayload = await authenticate(request, reply);
+  if (!userPayload) return;
+
+  const user = db.select().from(users).where(eq(users.id, userPayload.userId)).get();
+  if (!user) {
+    return reply.status(404).send({ error: 'User not found' });
+  }
+
+  let company = null;
+  if (user.companyId) {
+    company = db.select().from(companies).where(eq(companies.id, user.companyId)).get() || null;
+  }
+
+  return reply.send({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    companyId: user.companyId,
+    designation: user.designation,
+    department: user.department,
+    phone: user.phone,
+    company,
+  });
+});
+
+server.get('/api/auth/demo-users', async (_request, reply) => {
+  const demoAccounts = db
+    .select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      companyId: users.companyId,
+      designation: users.designation,
+      department: users.department,
+    })
+    .from(users)
+    .all();
+
+  return reply.send(demoAccounts);
+});
+
+server.get('/api/auth/users', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasAccess = await requireRole('ADMIN')(request, reply);
+  if (!hasAccess) return;
+
   const allUsers = db
     .select({
       id: users.id,
@@ -122,6 +202,8 @@ server.get('/api/auth/users', async (_request, reply) => {
       companyId: users.companyId,
       designation: users.designation,
       department: users.department,
+      phone: users.phone,
+      createdAt: users.createdAt,
     })
     .from(users)
     .all();
@@ -169,124 +251,118 @@ server.get('/api/products', async (request, reply) => {
 });
 
 // -------------------------------------------------------------
-// SCAN & COMPLIANCE ENGINE ROUTES
+// SCAN & REAL AI/OCR COMPLIANCE ENGINE ROUTES
 // -------------------------------------------------------------
 
 server.post('/api/scans/analyze', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const allowLimit = await scanRateLimiter(request, reply);
+  if (!allowLimit) return;
+
   let imagePath = '/samples/apex_biscuits.svg';
   let originalName = 'label_scan.jpg';
-  let userId = 'usr-consumer';
+  let mimeType = 'image/jpeg';
+  let userId = authUser.userId;
   let productId: string | undefined = undefined;
-  let ocrOverride: string | undefined = undefined;
   let packageHeightMm: number | undefined = undefined;
   let packageWidthMm: number | undefined = undefined;
+  let imageBuffer: Buffer | undefined = undefined;
 
   // Check if multipart form data
   if (request.isMultipart()) {
     const parts = request.parts();
     for await (const part of parts) {
       if (part.type === 'file') {
-        const buf = await part.toBuffer();
-        const saved = await StorageService.saveBuffer(buf, part.filename, part.mimetype);
+        const fileCheck = InputValidator.validateUploadFile({
+          filename: part.filename,
+          mimetype: part.mimetype,
+        });
+
+        if (!fileCheck.valid) {
+          return reply.status(400).send({ error: fileCheck.error });
+        }
+
+        const safeFilename = InputValidator.sanitizeFilename(part.filename);
+        imageBuffer = await part.toBuffer();
+        const saved = await StorageService.saveBuffer(imageBuffer, safeFilename, part.mimetype);
         imagePath = saved.publicUrl;
-        originalName = part.filename;
+        originalName = safeFilename;
+        mimeType = part.mimetype;
       } else {
         const fieldName = part.fieldname;
         const val = part.value as string;
-        if (fieldName === 'userId') userId = val;
         if (fieldName === 'productId') productId = val;
-        if (fieldName === 'ocrText') ocrOverride = val;
         if (fieldName === 'packageHeightMm') packageHeightMm = parseFloat(val);
         if (fieldName === 'packageWidthMm') packageWidthMm = parseFloat(val);
       }
     }
   } else {
-    // JSON Payload
-    const body = request.body as {
-      userId?: string;
+    const body = (request.body || {}) as {
       productId?: string;
       imageUrl?: string;
       originalName?: string;
-      ocrText?: string;
       packageHeightMm?: number;
       packageWidthMm?: number;
     };
-    if (body.userId) userId = body.userId;
     if (body.productId) productId = body.productId;
-    if (body.imageUrl) imagePath = body.imageUrl;
-    if (body.originalName) originalName = body.originalName;
-    if (body.ocrText) ocrOverride = body.ocrText;
-    if (body.packageHeightMm) packageHeightMm = body.packageHeightMm;
-    if (body.packageWidthMm) packageWidthMm = body.packageWidthMm;
+    if (body.imageUrl) {
+      if (body.imageUrl.startsWith('/samples/') || body.imageUrl.startsWith('/uploads/')) {
+        imagePath = body.imageUrl;
+      }
+    }
+    if (body.originalName) originalName = InputValidator.sanitizeFilename(body.originalName);
+    if (body.packageHeightMm && !isNaN(body.packageHeightMm)) packageHeightMm = body.packageHeightMm;
+    if (body.packageWidthMm && !isNaN(body.packageWidthMm)) packageWidthMm = body.packageWidthMm;
   }
 
-  // If a known product was selected, use or calibrate sample text
   let targetProduct = productId ? db.select().from(products).where(eq(products.id, productId)).get() : null;
 
-  let rawOcrText = ocrOverride;
-  if (!rawOcrText) {
-    if (productId === 'prod-apex-biscuits' || imagePath.includes('apex')) {
-      rawOcrText = `
-Apex Delight Cream Biscuits Vanilla
-Manufactured by: Apex Foods Pvt. Ltd., Plot 42, Industrial Area, Sector 5, Haridwar, Uttarakhand - 249403
-Net Quantity: 200 g
-MRP: Rs. 40.00
-Date of Packing: 07/2026
-Batch No: APX-9824
-Unit Sale Price: Rs. 0.20 per g
-Made in India
-`.trim();
-    } else if (productId === 'prod-greenbasket-oil' || imagePath.includes('greenbasket')) {
-      rawOcrText = `
-GreenBasket Botanicals
-Pure Cold Pressed Sweet Almond Oil
-Manufactured by: GreenBasket Consumer Products, 702 Trade Link Tower, Lower Parel, Mumbai, MH - 400013
-Net Quantity: 100 ml
-MRP: Rs. 249.00 (inclusive of all taxes)
-Date of Packing: 06/2026
-Batch No: GB-ALM-102
-Consumer Care Cell: Email: care@greenbasket.in, Toll-Free: 1800-456-7890
-Unit Sale Price: Rs. 2.49 per ml
-Country of Origin: India
-`.trim();
-    } else if (productId === 'prod-nova-dishwash' || imagePath.includes('nova')) {
-      rawOcrText = `
-Nova Clean Lemon Power Liquid Dishwash
-Manufactured by: Nova Household Goods, Building 14, Electronic City, Bengaluru, KA - 560100
-Net Quantity: 500 ml
-MRP: ₹115.00 (incl. of all taxes)
-Date of Packing: 05/2026
-Batch: NV-9901
-Consumer Care: Phone: 080-23456789
-`.trim();
-    } else {
-      // General packaged commodity fallback OCR text
-      rawOcrText = `
-PRE-PACKED COMMODITY
-Brand: Apex Delight
-Manufactured by: Apex Foods Pvt. Ltd., Haridwar, Uttarakhand
-Net Quantity: 200 g
-MRP: Rs. 40.00 (inclusive of all taxes)
-Date of Packing: 08/2026
-Unit Sale Price: Rs. 0.20 per g
-Consumer Care: care@apexfoods.in, Tel: 1800-200-8899
-Made in India
-`.trim();
+  // Real OCR Processing via Python Microservice (NO SILENT MOCK FALLBACK)
+  let ocrResult: PythonOCRResponse;
+  try {
+    const targetFileSource = imageBuffer || path.resolve(process.cwd(), imagePath.replace(/^\//, ''));
+    ocrResult = await OCRClient.processImage(targetFileSource, originalName, mimeType);
+  } catch (err: any) {
+    server.log.error(err);
+    if (err.message.includes('OCR_SERVICE_UNAVAILABLE')) {
+      return reply.status(503).send({
+        error: 'OCR_SERVICE_UNAVAILABLE',
+        message: 'The Neural Python OCR microservice is currently offline. Please ensure the Python AI service is running on port 8000.',
+      });
     }
+    if (err.message.includes('LOW_IMAGE_QUALITY')) {
+      return reply.status(400).send({
+        error: 'LOW_IMAGE_QUALITY',
+        message: 'Uploaded label photo resolution, contrast, or blur quality is too low for accurate Legal Metrology OCR evaluation. Please upload a clearer photograph.',
+      });
+    }
+    return reply.status(500).send({
+      error: 'OCR_FAILED',
+      message: err.message || 'Optical character recognition processing failed on uploaded image.',
+    });
   }
 
-  // Run Compliance Engine
-  const analysis = ComplianceEvaluator.analyzeScan(rawOcrText, {
-    packageHeightMm: packageHeightMm || 160,
-    packageWidthMm: packageWidthMm || 100,
-    imageHeightPx: 800,
-    imageWidthPx: 600,
-    measuredCharHeightPx: imagePath.includes('nova') ? 14 : imagePath.includes('apex') ? 17 : 24,
-  });
+  // Run Compliance Engine with Real OCR Output & Real Bounding Boxes
+  const analysis = ComplianceEvaluator.analyzeScan(
+    ocrResult.rawText,
+    {
+      packageHeightMm: packageHeightMm || 160,
+      packageWidthMm: packageWidthMm || 100,
+      imageHeightPx: ocrResult.image.height,
+      imageWidthPx: ocrResult.image.width,
+    },
+    ocrResult.regions,
+    ocrResult.provider,
+    ocrResult.quality,
+    ocrResult.image
+  );
 
   const scanId = `scan-${Date.now()}`;
+  const now = new Date().toISOString();
 
-  // Store in database
+  // Store scan metadata
   db.insert(scans)
     .values({
       id: scanId,
@@ -298,24 +374,58 @@ Made in India
       overallScore: analysis.summary.score,
       ruleSetVersion: analysis.summary.ruleSetVersion,
       ocrText: analysis.ocrText,
-      ocrConfidence: 0.95,
+      ocrConfidence: ocrResult.regions.length > 0
+        ? parseFloat((ocrResult.regions.reduce((acc, r) => acc + r.confidence, 0) / ocrResult.regions.length).toFixed(4))
+        : 0.85,
+      ocrProvider: ocrResult.provider,
+      ocrRegionsJson: JSON.stringify(ocrResult.regions),
+      imageQualityJson: JSON.stringify(ocrResult.quality),
+      imageWidth: ocrResult.image.width,
+      imageHeight: ocrResult.image.height,
       fontAnalysisJson: JSON.stringify(analysis.fontAnalysis),
       summaryJson: JSON.stringify(analysis.summary),
       brandDetected: analysis.fingerprint.brand || targetProduct?.brand,
       productNameDetected: analysis.fingerprint.productName || targetProduct?.name,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
     })
     .run();
 
+  // Save scan image record
+  db.insert(scanImages)
+    .values({
+      id: `img-${scanId}`,
+      scanId,
+      originalFileName: originalName,
+      storagePath: imagePath,
+      mimeType,
+      width: ocrResult.image.width,
+      height: ocrResult.image.height,
+      createdAt: now,
+    })
+    .run();
+
+  // Save real OCR regions to database
+  for (let i = 0; i < ocrResult.regions.length; i++) {
+    const r = ocrResult.regions[i];
+    db.insert(ocrRegions)
+      .values({
+        id: `reg-${scanId}-${i}`,
+        scanId,
+        text: r.text,
+        confidence: r.confidence,
+        x: r.boundingBox.x,
+        y: r.boundingBox.y,
+        width: r.boundingBox.width,
+        height: r.boundingBox.height,
+        polygonJson: JSON.stringify(r.polygon),
+        engine: ocrResult.provider,
+      })
+      .run();
+  }
+
   // Save declarations
   for (const [type, dec] of Object.entries(analysis.declarations)) {
-    const d = dec as {
-      label: string;
-      detectedValue?: string;
-      confidence: number;
-      rawSnippet?: string;
-      notes?: string;
-    };
+    const d = dec as any;
     db.insert(declarations)
       .values({
         id: `dec-${scanId}-${type}`,
@@ -326,6 +436,7 @@ Made in India
         confidence: d.confidence,
         rawSnippet: d.rawSnippet || null,
         notes: d.notes || null,
+        boundingBoxJson: d.boundingBox ? JSON.stringify(d.boundingBox) : null,
       })
       .run();
   }
@@ -346,6 +457,7 @@ Made in India
         expectedRequirement: rule.expectedRequirement,
         explanation: rule.explanation,
         evidenceSnippet: rule.evidenceSnippet || null,
+        evidenceBoxJson: rule.evidenceBox ? JSON.stringify(rule.evidenceBox) : null,
       })
       .run();
   }
@@ -355,15 +467,17 @@ Made in India
     .values({
       id: `aud-${Date.now()}`,
       actorId: userId,
-      actorRole: 'CONSUMER',
-      action: 'SCAN_COMPLETED',
+      actorRole: authUser.role,
+      action: 'REAL_OCR_SCAN_COMPLETED',
       entityType: 'SCAN',
       entityId: scanId,
       detailsJson: JSON.stringify({
         score: analysis.summary.score,
         status: analysis.summary.overallStatus,
+        regionsDetected: ocrResult.regions.length,
+        qualityScore: ocrResult.quality.score,
       }),
-      timestamp: new Date().toISOString(),
+      timestamp: now,
     })
     .run();
 
@@ -372,16 +486,38 @@ Made in India
     analysis,
     imagePath,
     product: targetProduct,
+    ocr: {
+      provider: ocrResult.provider,
+      quality: ocrResult.quality,
+      image: ocrResult.image,
+      regionsCount: ocrResult.regions.length,
+    },
   });
 });
 
 server.get('/api/scans', async (request, reply) => {
-  const query = request.query as { userId?: string; limit?: string };
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const query = request.query as { limit?: string };
   let allScans = db.select().from(scans).orderBy(desc(scans.createdAt)).all();
 
-  if (query.userId) {
-    allScans = allScans.filter((s) => s.userId === query.userId);
+  if (authUser.role === 'CONSUMER') {
+    allScans = allScans.filter((s) => s.userId === authUser.userId);
+  } else if (authUser.role === 'COMPANY') {
+    if (authUser.companyId) {
+      const companyProductIds = db
+        .select({ id: products.id })
+        .from(products)
+        .where(eq(products.companyId, authUser.companyId))
+        .all()
+        .map((p) => p.id);
+      allScans = allScans.filter((s) => s.productId && companyProductIds.includes(s.productId));
+    } else {
+      allScans = [];
+    }
   }
+
   if (query.limit) {
     allScans = allScans.slice(0, parseInt(query.limit, 10));
   }
@@ -390,6 +526,9 @@ server.get('/api/scans', async (request, reply) => {
 });
 
 server.get('/api/scans/:id', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
   const { id } = request.params as { id: string };
   const scan = db.select().from(scans).where(eq(scans.id, id)).get();
 
@@ -397,8 +536,22 @@ server.get('/api/scans/:id', async (request, reply) => {
     return reply.status(404).send({ error: 'Scan record not found' });
   }
 
+  if (authUser.role === 'CONSUMER' && scan.userId !== authUser.userId) {
+    return reply.status(403).send({ error: 'Forbidden: Access to another user scan record is denied' });
+  }
+
+  if (authUser.role === 'COMPANY') {
+    const product = scan.productId
+      ? db.select().from(products).where(eq(products.id, scan.productId)).get()
+      : null;
+    if (!product || product.companyId !== authUser.companyId) {
+      return reply.status(403).send({ error: 'Forbidden: Access to another enterprise scan record is denied' });
+    }
+  }
+
   const decs = db.select().from(declarations).where(eq(declarations.scanId, id)).all();
   const rules = db.select().from(ruleEvaluations).where(eq(ruleEvaluations.scanId, id)).all();
+  const regions = db.select().from(ocrRegions).where(eq(ocrRegions.scanId, id)).all();
   const product = scan.productId
     ? db.select().from(products).where(eq(products.id, scan.productId)).get()
     : null;
@@ -410,6 +563,8 @@ server.get('/api/scans/:id', async (request, reply) => {
     ...scan,
     fontAnalysis: JSON.parse(scan.fontAnalysisJson),
     summary: JSON.parse(scan.summaryJson),
+    ocrRegions: regions,
+    imageQuality: scan.imageQualityJson ? JSON.parse(scan.imageQualityJson) : null,
     declarations: decs,
     ruleEvaluations: rules,
     product,
@@ -422,9 +577,19 @@ server.get('/api/scans/:id', async (request, reply) => {
 // -------------------------------------------------------------
 
 server.post('/api/complaints', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const allowLimit = await complaintRateLimiter(request, reply);
+  if (!allowLimit) return;
+
+  const valCheck = InputValidator.validateComplaintPayload(request.body);
+  if (!valCheck.valid) {
+    return reply.status(400).send({ error: valCheck.error });
+  }
+
   const body = request.body as {
     scanId: string;
-    consumerId: string;
     companyId?: string;
     productId?: string;
     consumerNotes?: string;
@@ -432,14 +597,13 @@ server.post('/api/complaints', async (request, reply) => {
     purchaseStore?: string;
   };
 
-  if (!body.scanId || !body.consumerId) {
-    return reply.status(400).send({ error: 'scanId and consumerId are mandatory' });
-  }
-
-  // Get scan details to identify product / company
   const scan = db.select().from(scans).where(eq(scans.id, body.scanId)).get();
   if (!scan) {
     return reply.status(404).send({ error: 'Scan not found' });
+  }
+
+  if (authUser.role === 'CONSUMER' && scan.userId !== authUser.userId) {
+    return reply.status(403).send({ error: 'Forbidden: Cannot create complaint for a scan record owned by another user' });
   }
 
   let finalCompanyId = body.companyId;
@@ -451,7 +615,6 @@ server.post('/api/complaints', async (request, reply) => {
   }
 
   if (!finalCompanyId) {
-    // Default fallback to Apex if inferred from scan or first company
     finalCompanyId = 'comp-apex';
   }
 
@@ -463,7 +626,7 @@ server.post('/api/complaints', async (request, reply) => {
     .values({
       id: complaintId,
       scanId: body.scanId,
-      consumerId: body.consumerId,
+      consumerId: authUser.userId,
       companyId: finalCompanyId,
       productId: finalProductId || null,
       status: 'SUBMITTED',
@@ -475,24 +638,21 @@ server.post('/api/complaints', async (request, reply) => {
     })
     .run();
 
-  // Increment company active complaints count
   db.run(
     sql`UPDATE companies SET active_complaints_count = active_complaints_count + 1 WHERE id = ${finalCompanyId}`
   );
 
-  // Increment product issues count if product exists
   if (finalProductId) {
     db.run(
       sql`UPDATE products SET potential_issues_count = potential_issues_count + 1 WHERE id = ${finalProductId}`
     );
   }
 
-  // Audit Log
   db.insert(auditLogs)
     .values({
       id: `aud-${Date.now()}`,
-      actorId: body.consumerId,
-      actorRole: 'CONSUMER',
+      actorId: authUser.userId,
+      actorRole: authUser.role,
       action: 'COMPLAINT_FILED',
       entityType: 'COMPLAINT',
       entityId: complaintId,
@@ -510,26 +670,26 @@ server.post('/api/complaints', async (request, reply) => {
 });
 
 server.get('/api/complaints', async (request, reply) => {
-  const query = request.query as {
-    consumerId?: string;
-    companyId?: string;
-    status?: string;
-    limit?: string;
-  };
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
 
+  const query = request.query as { status?: string };
   let allComplaints = db.select().from(complaints).orderBy(desc(complaints.createdAt)).all();
 
-  if (query.consumerId) {
-    allComplaints = allComplaints.filter((c) => c.consumerId === query.consumerId);
+  if (authUser.role === 'CONSUMER') {
+    allComplaints = allComplaints.filter((c) => c.consumerId === authUser.userId);
+  } else if (authUser.role === 'COMPANY') {
+    if (authUser.companyId) {
+      allComplaints = allComplaints.filter((c) => c.companyId === authUser.companyId);
+    } else {
+      allComplaints = [];
+    }
   }
-  if (query.companyId) {
-    allComplaints = allComplaints.filter((c) => c.companyId === query.companyId);
-  }
+
   if (query.status) {
     allComplaints = allComplaints.filter((c) => c.status === query.status);
   }
 
-  // Join product and company information
   const enriched = allComplaints.map((c) => {
     const comp = db.select().from(companies).where(eq(companies.id, c.companyId)).get();
     const prod = c.productId
@@ -548,11 +708,21 @@ server.get('/api/complaints', async (request, reply) => {
 });
 
 server.get('/api/complaints/:id', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
   const { id } = request.params as { id: string };
   const complaint = db.select().from(complaints).where(eq(complaints.id, id)).get();
 
   if (!complaint) {
     return reply.status(404).send({ error: 'Complaint not found' });
+  }
+
+  if (authUser.role === 'CONSUMER' && complaint.consumerId !== authUser.userId) {
+    return reply.status(403).send({ error: 'Forbidden: Access to another consumer grievance is denied' });
+  }
+  if (authUser.role === 'COMPANY' && complaint.companyId !== authUser.companyId) {
+    return reply.status(403).send({ error: 'Forbidden: Access to another company grievance is denied' });
   }
 
   const comp = db.select().from(companies).where(eq(companies.id, complaint.companyId)).get();
@@ -583,21 +753,35 @@ server.get('/api/complaints/:id', async (request, reply) => {
   });
 });
 
-// Company response endpoint
 server.post('/api/complaints/:id/respond', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasRole = await requireRole('COMPANY', 'ADMIN')(request, reply);
+  if (!hasRole) return;
+
+  const valCheck = InputValidator.validateCompanyResponsePayload(request.body);
+  if (!valCheck.valid) {
+    return reply.status(400).send({ error: valCheck.error });
+  }
+
   const { id } = request.params as { id: string };
+  const complaint = db.select().from(complaints).where(eq(complaints.id, id)).get();
+
+  if (!complaint) {
+    return reply.status(404).send({ error: 'Complaint not found' });
+  }
+
+  if (!checkCompanyAccess(authUser, complaint.companyId)) {
+    return reply.status(403).send({ error: 'Forbidden: Cannot submit official response for another company' });
+  }
+
   const body = request.body as {
-    companyId: string;
     responseText: string;
     correctiveActionType?: string;
     correctedLabelImageUrl?: string;
     batchNumber?: string;
   };
-
-  const complaint = db.select().from(complaints).where(eq(complaints.id, id)).get();
-  if (!complaint) {
-    return reply.status(404).send({ error: 'Complaint not found' });
-  }
 
   const now = new Date().toISOString();
 
@@ -605,7 +789,7 @@ server.post('/api/complaints/:id/respond', async (request, reply) => {
     .values({
       id: `resp-${Date.now()}`,
       complaintId: id,
-      companyId: body.companyId,
+      companyId: complaint.companyId,
       responseText: body.responseText,
       correctiveActionType: body.correctiveActionType || 'PACKAGING_REVISION',
       correctedLabelImageUrl: body.correctedLabelImageUrl || '/samples/apex_biscuits_corrected.svg',
@@ -614,18 +798,16 @@ server.post('/api/complaints/:id/respond', async (request, reply) => {
     })
     .run();
 
-  // Update complaint status to COMPANY_RESPONDED
   db.update(complaints)
     .set({ status: 'COMPANY_RESPONDED', updatedAt: now })
     .where(eq(complaints.id, id))
     .run();
 
-  // Audit log
   db.insert(auditLogs)
     .values({
       id: `aud-${Date.now()}`,
-      actorId: body.companyId,
-      actorRole: 'COMPANY',
+      actorId: authUser.userId,
+      actorRole: authUser.role,
       action: 'COMPANY_RESPONDED',
       entityType: 'COMPLAINT',
       entityId: id,
@@ -637,17 +819,24 @@ server.post('/api/complaints/:id/respond', async (request, reply) => {
   return reply.send({ success: true, status: 'COMPANY_RESPONDED' });
 });
 
-// Escalation endpoint
 server.post('/api/complaints/:id/escalate', async (request, reply) => {
-  const { id } = request.params as { id: string };
-  const body = (request.body || {}) as { reason?: string; actorId?: string };
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
 
+  const { id } = request.params as { id: string };
   const complaint = db.select().from(complaints).where(eq(complaints.id, id)).get();
+
   if (!complaint) {
     return reply.status(404).send({ error: 'Complaint not found' });
   }
 
+  if (authUser.role === 'CONSUMER' && complaint.consumerId !== authUser.userId) {
+    return reply.status(403).send({ error: 'Forbidden: Cannot escalate another user grievance' });
+  }
+
+  const body = (request.body || {}) as { reason?: string };
   const now = new Date().toISOString();
+
   db.update(complaints)
     .set({ status: 'ESCALATED', updatedAt: now })
     .where(eq(complaints.id, id))
@@ -656,8 +845,8 @@ server.post('/api/complaints/:id/escalate', async (request, reply) => {
   db.insert(auditLogs)
     .values({
       id: `aud-${Date.now()}`,
-      actorId: body.actorId || 'usr-consumer',
-      actorRole: 'CONSUMER',
+      actorId: authUser.userId,
+      actorRole: authUser.role,
       action: 'COMPLAINT_ESCALATED',
       entityType: 'COMPLAINT',
       entityId: id,
@@ -669,22 +858,31 @@ server.post('/api/complaints/:id/escalate', async (request, reply) => {
   return reply.send({ success: true, status: 'ESCALATED' });
 });
 
-// Government Officer Verification endpoint (Human-in-the-Loop)
 server.post('/api/complaints/:id/verify', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasRole = await requireRole('GOVERNMENT_OFFICER', 'ADMIN')(request, reply);
+  if (!hasRole) return;
+
+  const valCheck = InputValidator.validateGovernmentVerifyPayload(request.body);
+  if (!valCheck.valid) {
+    return reply.status(400).send({ error: valCheck.error });
+  }
+
   const { id } = request.params as { id: string };
+  const complaint = db.select().from(complaints).where(eq(complaints.id, id)).get();
+
+  if (!complaint) {
+    return reply.status(404).send({ error: 'Complaint not found' });
+  }
+
   const body = request.body as {
-    officerId: string;
-    officerName: string;
     decision: 'VERIFIED_VIOLATION' | 'REJECTED' | 'INSPECTION_ORDERED' | 'REQUEST_MORE_EVIDENCE';
     officerNotes: string;
     penaltyNoticeSection?: string;
     penaltyAmount?: number;
   };
-
-  const complaint = db.select().from(complaints).where(eq(complaints.id, id)).get();
-  if (!complaint) {
-    return reply.status(404).send({ error: 'Complaint not found' });
-  }
 
   const now = new Date().toISOString();
 
@@ -692,8 +890,8 @@ server.post('/api/complaints/:id/verify', async (request, reply) => {
     .values({
       id: `gov-rev-${Date.now()}`,
       complaintId: id,
-      officerId: body.officerId,
-      officerName: body.officerName,
+      officerId: authUser.userId,
+      officerName: authUser.name || 'Legal Metrology Officer',
       decision: body.decision,
       officerNotes: body.officerNotes,
       penaltyNoticeSection: body.penaltyNoticeSection || 'Section 36(1) of Legal Metrology Act, 2009',
@@ -715,24 +913,21 @@ server.post('/api/complaints/:id/verify', async (request, reply) => {
     .run();
 
   if (body.decision === 'VERIFIED_VIOLATION') {
-    // Increase verified violation count on product
     if (complaint.productId) {
       db.run(
         sql`UPDATE products SET verified_violations_count = verified_violations_count + 1 WHERE id = ${complaint.productId}`
       );
     }
-    // Recalculate company risk
     db.run(
       sql`UPDATE companies SET risk_score = MIN(100, risk_score + 5), risk_level = CASE WHEN risk_score + 5 > 70 THEN 'HIGH' WHEN risk_score + 5 > 40 THEN 'MEDIUM' ELSE 'LOW' END WHERE id = ${complaint.companyId}`
     );
   }
 
-  // Audit log
   db.insert(auditLogs)
     .values({
       id: `aud-${Date.now()}`,
-      actorId: body.officerId,
-      actorRole: 'GOVERNMENT_OFFICER',
+      actorId: authUser.userId,
+      actorRole: authUser.role,
       action: body.decision,
       entityType: 'COMPLAINT',
       entityId: id,
@@ -753,13 +948,24 @@ server.post('/api/complaints/:id/verify', async (request, reply) => {
 // -------------------------------------------------------------
 
 server.post('/api/inspections', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasRole = await requireRole('GOVERNMENT_OFFICER', 'ADMIN')(request, reply);
+  if (!hasRole) return;
+
+  const valCheck = InputValidator.validateInspectionPayload(request.body);
+  if (!valCheck.valid) {
+    return reply.status(400).send({ error: valCheck.error });
+  }
+
   const body = request.body as {
     complaintId?: string;
     companyId: string;
-    assignedOfficerId: string;
-    assignedOfficerName: string;
+    assignedOfficerId?: string;
+    assignedOfficerName?: string;
     facilityAddress: string;
-    scheduledDate: string;
+    scheduledDate?: string;
     findingsSummary?: string;
   };
 
@@ -771,10 +977,10 @@ server.post('/api/inspections', async (request, reply) => {
       id: inspId,
       complaintId: body.complaintId || null,
       companyId: body.companyId,
-      assignedOfficerId: body.assignedOfficerId,
-      assignedOfficerName: body.assignedOfficerName,
+      assignedOfficerId: body.assignedOfficerId || authUser.userId,
+      assignedOfficerName: body.assignedOfficerName || authUser.name || 'Legal Metrology Inspector',
       facilityAddress: body.facilityAddress,
-      scheduledDate: body.scheduledDate,
+      scheduledDate: body.scheduledDate || now.split('T')[0],
       status: 'SCHEDULED',
       findingsSummary: body.findingsSummary || 'On-site Legal Metrology compliance verification ordered.',
       enforcementAction: 'NOTICE_ISSUED',
@@ -785,12 +991,21 @@ server.post('/api/inspections', async (request, reply) => {
   return reply.send({ success: true, inspectionId: inspId });
 });
 
-server.get('/api/inspections', async (_request, reply) => {
-  const allInspections = db.select().from(inspections).orderBy(desc(inspections.scheduledDate)).all();
+server.get('/api/inspections', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  let allInspections = db.select().from(inspections).orderBy(desc(inspections.scheduledDate)).all();
+
+  if (authUser.role === 'COMPANY') {
+    allInspections = allInspections.filter((i) => i.companyId === authUser.companyId);
+  }
+
   const enriched = allInspections.map((i) => {
     const comp = db.select().from(companies).where(eq(companies.id, i.companyId)).get();
     return { ...i, company: comp };
   });
+
   return reply.send(enriched);
 });
 
@@ -798,21 +1013,26 @@ server.get('/api/inspections', async (_request, reply) => {
 // GOVERNMENT ENFORCEMENT ANALYTICS
 // -------------------------------------------------------------
 
-server.get('/api/government/analytics', async (_request, reply) => {
+server.get('/api/government/analytics', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasRole = await requireRole('GOVERNMENT_OFFICER', 'ADMIN')(request, reply);
+  if (!hasRole) return;
+
   const allScans = db.select().from(scans).all();
   const allComplaints = db.select().from(complaints).all();
   const allCompanies = db.select().from(companies).all();
   const allInspections = db.select().from(inspections).all();
   const allRuleEvals = db.select().from(ruleEvaluations).all();
 
-  const totalScans = allScans.length + 124820; // Aggregated enforcement scale
+  const totalScans = allScans.length + 124820;
   const potentialViolations = allScans.filter((s) => s.status !== 'COMPLIANT').length + 8412;
   const activeComplaints = allComplaints.filter((c) => !['RESOLVED', 'CLOSED', 'REJECTED'].includes(c.status)).length;
   const flaggedCompanies = allCompanies.filter((c) => c.riskScore > 40).length;
   const highRiskCompanies = allCompanies.filter((c) => c.riskLevel === 'HIGH').length;
   const pendingInspections = allInspections.filter((i) => i.status === 'SCHEDULED').length;
 
-  // Violations by Rule breakdown
   const ruleCounts: Record<string, { name: string; count: number }> = {
     'LM-RULE-005': { name: 'Consumer Care Details', count: 32 },
     'LM-RULE-007': { name: 'Font Size & Readability', count: 28 },
@@ -835,7 +1055,6 @@ server.get('/api/government/analytics', async (_request, reply) => {
     count: val.count,
   }));
 
-  // Violations by Category
   const violationsByCategory = [
     { category: 'Food & Snacks', count: 48, fill: '#3b82f6' },
     { category: 'Cosmetics & Personal Care', count: 26, fill: '#10b981' },
@@ -844,7 +1063,6 @@ server.get('/api/government/analytics', async (_request, reply) => {
     { category: 'Staples & Grains', count: 8, fill: '#06b6d4' },
   ];
 
-  // Complaint trend (monthly timeline)
   const complaintTrends = [
     { month: 'Mar 26', total: 18, resolved: 14, escalated: 4 },
     { month: 'Apr 26', total: 24, resolved: 19, escalated: 5 },
@@ -854,7 +1072,6 @@ server.get('/api/government/analytics', async (_request, reply) => {
     { month: 'Aug 26', total: 52, resolved: 38, escalated: 14 },
   ];
 
-  // High Risk Companies List
   const riskWatchlist = allCompanies
     .sort((a, b) => b.riskScore - a.riskScore)
     .slice(0, 6);
@@ -880,11 +1097,18 @@ server.get('/api/government/analytics', async (_request, reply) => {
 // -------------------------------------------------------------
 
 server.get('/api/reports/:scanId/pdf', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
   const { scanId } = request.params as { scanId: string };
   const scan = db.select().from(scans).where(eq(scans.id, scanId)).get();
 
   if (!scan) {
     return reply.status(404).send({ error: 'Scan not found' });
+  }
+
+  if (authUser.role === 'CONSUMER' && scan.userId !== authUser.userId) {
+    return reply.status(403).send({ error: 'Forbidden: Access to another user PDF report is denied' });
   }
 
   const decs = db.select().from(declarations).where(eq(declarations.scanId, scanId)).all();
@@ -986,11 +1210,18 @@ server.get('/api/reports/:scanId/pdf', async (request, reply) => {
 });
 
 server.get('/api/reports/:scanId/json', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
   const { scanId } = request.params as { scanId: string };
   const scan = db.select().from(scans).where(eq(scans.id, scanId)).get();
 
   if (!scan) {
     return reply.status(404).send({ error: 'Scan not found' });
+  }
+
+  if (authUser.role === 'CONSUMER' && scan.userId !== authUser.userId) {
+    return reply.status(403).send({ error: 'Forbidden: Access to another user JSON report is denied' });
   }
 
   const decs = db.select().from(declarations).where(eq(declarations.scanId, scanId)).all();
@@ -1019,7 +1250,13 @@ server.get('/api/rules', async (_request, reply) => {
   });
 });
 
-server.get('/api/audit-logs', async (_request, reply) => {
+server.get('/api/audit-logs', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasAccess = await requireRole('ADMIN')(request, reply);
+  if (!hasAccess) return;
+
   const logs = db.select().from(auditLogs).orderBy(desc(auditLogs.timestamp)).limit(50).all();
   return reply.send(logs);
 });
@@ -1041,4 +1278,3 @@ server.get('/api/audit-logs', async (_request, reply) => {
 }
 
 start();
-
