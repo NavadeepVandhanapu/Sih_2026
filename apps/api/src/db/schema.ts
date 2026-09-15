@@ -56,11 +56,40 @@ export const scans = sqliteTable('scans', {
   ruleSetVersion: text('rule_set_version').notNull(),
   ocrText: text('ocr_text').notNull(),
   ocrConfidence: real('ocr_confidence').notNull(),
+  ocrProvider: text('ocr_provider').default('PyTorch EasyOCR Neural Engine (v1.7)'),
+  ocrRegionsJson: text('ocr_regions_json'),
+  imageQualityJson: text('image_quality_json'),
+  imageWidth: integer('image_width'),
+  imageHeight: integer('image_height'),
   fontAnalysisJson: text('font_analysis_json').notNull(),
   summaryJson: text('summary_json').notNull(),
   brandDetected: text('brand_detected'),
   productNameDetected: text('product_name_detected'),
   createdAt: text('created_at').notNull(),
+});
+
+export const scanImages = sqliteTable('scan_images', {
+  id: text('id').primaryKey(),
+  scanId: text('scan_id').notNull(),
+  originalFileName: text('original_file_name').notNull(),
+  storagePath: text('storage_path').notNull(),
+  mimeType: text('mime_type').notNull(),
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+export const ocrRegions = sqliteTable('ocr_regions', {
+  id: text('id').primaryKey(),
+  scanId: text('scan_id').notNull(),
+  text: text('text').notNull(),
+  confidence: real('confidence').notNull(),
+  x: real('x').notNull(),
+  y: real('y').notNull(),
+  width: real('width').notNull(),
+  height: real('height').notNull(),
+  polygonJson: text('polygon_json'),
+  engine: text('engine').notNull().default('PyTorch EasyOCR Neural Engine (v1.7)'),
 });
 
 export const declarations = sqliteTable('declarations', {
@@ -72,6 +101,7 @@ export const declarations = sqliteTable('declarations', {
   confidence: real('confidence').notNull(),
   rawSnippet: text('raw_snippet'),
   notes: text('notes'),
+  boundingBoxJson: text('bounding_box_json'),
 });
 
 export const ruleEvaluations = sqliteTable('rule_evaluations', {
@@ -87,15 +117,16 @@ export const ruleEvaluations = sqliteTable('rule_evaluations', {
   expectedRequirement: text('expected_requirement').notNull(),
   explanation: text('explanation').notNull(),
   evidenceSnippet: text('evidence_snippet'),
+  evidenceBoxJson: text('evidence_box_json'),
 });
 
 export const complaints = sqliteTable('complaints', {
-  id: text('id').primaryKey(), // e.g. "LM-2026-001284"
+  id: text('id').primaryKey(),
   scanId: text('scan_id').notNull(),
   consumerId: text('consumer_id').notNull(),
   companyId: text('company_id').notNull(),
   productId: text('product_id'),
-  status: text('status').notNull(), // 'SUBMITTED' | 'UNDER_COMPANY_REVIEW' | 'COMPANY_RESPONDED' | 'ESCALATED' | 'UNDER_GOVERNMENT_REVIEW' | 'VERIFIED' | 'REJECTED' | 'RESOLVED' | 'CLOSED'
+  status: text('status').notNull(),
   consumerNotes: text('consumer_notes'),
   consumerLocation: text('consumer_location'),
   purchaseStore: text('purchase_store'),
@@ -108,7 +139,7 @@ export const companyResponses = sqliteTable('company_responses', {
   complaintId: text('complaint_id').notNull(),
   companyId: text('company_id').notNull(),
   responseText: text('response_text').notNull(),
-  correctiveActionType: text('corrective_action_type'), // 'PACKAGING_REVISION' | 'RECALL_BATCH' | 'INTERNAL_AUDIT' | 'DISPUTED'
+  correctiveActionType: text('corrective_action_type'),
   correctedLabelImageUrl: text('corrected_label_image_url'),
   batchNumber: text('batch_number'),
   submittedAt: text('submitted_at').notNull(),
@@ -119,7 +150,7 @@ export const governmentReviews = sqliteTable('government_reviews', {
   complaintId: text('complaint_id').notNull(),
   officerId: text('officer_id').notNull(),
   officerName: text('officer_name').notNull(),
-  decision: text('decision').notNull(), // 'VERIFIED_VIOLATION' | 'REJECTED' | 'INSPECTION_ORDERED' | 'REQUEST_MORE_EVIDENCE'
+  decision: text('decision').notNull(),
   officerNotes: text('officer_notes').notNull(),
   penaltyNoticeSection: text('penalty_notice_section'),
   penaltyAmount: real('penalty_amount'),
@@ -134,9 +165,9 @@ export const inspections = sqliteTable('inspections', {
   assignedOfficerName: text('assigned_officer_name').notNull(),
   facilityAddress: text('facility_address').notNull(),
   scheduledDate: text('scheduled_date').notNull(),
-  status: text('status').notNull(), // 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+  status: text('status').notNull(),
   findingsSummary: text('findings_summary'),
-  enforcementAction: text('enforcement_action'), // 'NOTICE_ISSUED' | 'COMPOUNDED' | 'SEIZED' | 'CLEARED'
+  enforcementAction: text('enforcement_action'),
   reportPdfPath: text('report_pdf_path'),
   createdAt: text('created_at').notNull(),
 });

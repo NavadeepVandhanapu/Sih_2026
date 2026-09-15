@@ -1,10 +1,13 @@
-import { DeclarationType, ExtractedDeclaration } from '../types';
+import { DeclarationType, ExtractedDeclaration, OCRRegion, BoundingBox } from '../types';
 
 export class DeclarationExtractor {
-  public static extract(rawText: string): Record<DeclarationType, ExtractedDeclaration> {
+  public static extract(
+    rawText: string,
+    ocrRegions?: OCRRegion[]
+  ): Record<DeclarationType, ExtractedDeclaration> {
     const text = rawText || '';
 
-    return {
+    const decs: Record<DeclarationType, ExtractedDeclaration> = {
       manufacturer: this.extractManufacturer(text),
       packer_importer: this.extractPackerImporter(text),
       net_quantity: this.extractNetQuantity(text),
@@ -14,10 +17,51 @@ export class DeclarationExtractor {
       unit_sale_price: this.extractUnitSalePrice(text),
       country_of_origin: this.extractCountryOfOrigin(text),
     };
+
+    // Attach real bounding boxes from OCR regions if available
+    if (ocrRegions && ocrRegions.length > 0) {
+      for (const [key, dec] of Object.entries(decs) as Array<[DeclarationType, ExtractedDeclaration]>) {
+        if (dec.detectedValue || dec.rawSnippet) {
+          const matchBox = this.findMatchingBoundingBox(dec, ocrRegions);
+          if (matchBox) {
+            dec.boundingBox = matchBox;
+          }
+        }
+      }
+    }
+
+    return decs;
+  }
+
+  private static findMatchingBoundingBox(
+    dec: ExtractedDeclaration,
+    regions: OCRRegion[]
+  ): BoundingBox | undefined {
+    const target = (dec.rawSnippet || dec.detectedValue || '').toLowerCase();
+    if (!target) return undefined;
+
+    // 1. Direct region match
+    for (const r of regions) {
+      const regionText = r.text.toLowerCase();
+      if (regionText.includes(target) || target.includes(regionText)) {
+        return r.boundingBox;
+      }
+    }
+
+    // 2. Token match
+    const keywords = target.split(/\s+/).filter((w) => w.length > 3);
+    for (const r of regions) {
+      const regionText = r.text.toLowerCase();
+      const matchCount = keywords.filter((k) => regionText.includes(k)).length;
+      if (matchCount >= 2 || (keywords.length === 1 && matchCount === 1)) {
+        return r.boundingBox;
+      }
+    }
+
+    return undefined;
   }
 
   private static extractManufacturer(text: string): ExtractedDeclaration {
-    // Look for keywords: "Mfd by", "Manufactured by", "Mfg by", "Produced by"
     const mfgRegex = /(?:Manufactured|Mfd|Produced|Packed)\s+by\s*[:\-]?\s*([A-Za-z0-9\s,\.\-&]+(?:Pvt\.?\s*Ltd\.?|Limited|LLP|Enterprises|Foods|Industries)?(?:\n[A-Za-z0-9\s,\.\-]+)?)/i;
     const match = text.match(mfgRegex);
 
@@ -33,7 +77,6 @@ export class DeclarationExtractor {
       };
     }
 
-    // Secondary scan for company names
     const fallbackRegex = /([A-Z][A-Za-z0-9\s&]{2,30}(?:Pvt\.?\s*Ltd|Limited|Industries|Herbals|Foods))/;
     const fallbackMatch = text.match(fallbackRegex);
     if (fallbackMatch) {
@@ -80,7 +123,6 @@ export class DeclarationExtractor {
   }
 
   private static extractNetQuantity(text: string): ExtractedDeclaration {
-    // Look for "Net Qty", "Net Wt", "Net Content", "Net Quantity"
     const netQtyRegex = /(?:Net\s*(?:Quantity|Qty|Weight|Wt|Vol|Volume|Contents?)[:\s\-]*)\s*(\d+(?:\.\d+)?\s*(?:g|gm|gms|kg|ml|l|ltr|litres?|pieces?|N|u|units?))\b/i;
     let match = text.match(netQtyRegex);
 
@@ -95,8 +137,7 @@ export class DeclarationExtractor {
       };
     }
 
-    // Bare weight regex like "200 g" or "500 ml" or "1 kg"
-    const bareMetricRegex = /\b(\d+(?:\.\d+)?\s*(?:kg|gms?|ml|ltr|litres?))\b/i;
+    const bareMetricRegex = /\b(\d+(?:\.\d+)?\s*(?:kg|gms?|g|ml|ltr|litres?))\b/i;
     match = text.match(bareMetricRegex);
     if (match && match[1]) {
       return {
@@ -119,7 +160,6 @@ export class DeclarationExtractor {
   }
 
   private static extractMRP(text: string): ExtractedDeclaration {
-    // Look for MRP: "MRP Rs. 50", "M.R.P. : ₹ 120.00 (incl. of all taxes)"
     const mrpRegex = /(?:M\.?R\.?P\.?|Maximum\s+Retail\s+Price)\s*[:\-]?\s*(?:Rs\.?|INR|₹)?\s*(\d+(?:\.\d{2})?)\s*([^\n\r]*incl[^\n\r]*)?/i;
     const match = text.match(mrpRegex);
 
@@ -140,7 +180,6 @@ export class DeclarationExtractor {
       };
     }
 
-    // Currency pattern fallback
     const fallbackPrice = /(?:₹|Rs\.?)\s*(\d+(?:\.\d{2})?)/i.exec(text);
     if (fallbackPrice) {
       return {
@@ -163,7 +202,6 @@ export class DeclarationExtractor {
   }
 
   private static extractMfgDate(text: string): ExtractedDeclaration {
-    // "Mfg Date: 05/2026", "Pkd: MAY 2026", "Mfd: 12/2025"
     const dateRegex = /(?:Mfg|Mfd|Packed|Pkd|Date\s*of\s*(?:Mfg|Packing))\s*[:\-]?\s*([0-9]{1,2}[\/\-][0-9]{2,4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s\.\-]+[0-9]{2,4})/i;
     const match = text.match(dateRegex);
 
@@ -178,7 +216,6 @@ export class DeclarationExtractor {
       };
     }
 
-    // Secondary date search
     const bareDate = /\b(0[1-9]|1[0-2])[\/\-](202[4-8])\b/.exec(text);
     if (bareDate) {
       return {
@@ -219,7 +256,7 @@ export class DeclarationExtractor {
           type: 'consumer_care',
           label: 'Consumer Care Details',
           detectedValue: parts.join(' | '),
-          confidence: (emailMatch && phoneMatch) ? 0.97 : 0.86,
+          confidence: emailMatch && phoneMatch ? 0.97 : 0.86,
           rawSnippet: parts.join(', '),
           notes: 'Consumer care contact channel(s) detected',
         };
@@ -236,7 +273,6 @@ export class DeclarationExtractor {
   }
 
   private static extractUnitSalePrice(text: string): ExtractedDeclaration {
-    // "USP: Rs 0.25 / g" or "Unit Sale Price: ₹ 0.40 per ml"
     const uspRegex = /(?:Unit\s*Sale\s*Price|USP)\s*[:\-]?\s*(?:Rs\.?|₹)?\s*(\d+(?:\.\d{1,4})?)\s*(?:per|\/)\s*(g|gm|kg|ml|l|meter|metre|u)/i;
     const match = text.match(uspRegex);
 
@@ -275,7 +311,6 @@ export class DeclarationExtractor {
       };
     }
 
-    // Default for domestic products if domestic address is found
     if (/India|New\s*Delhi|Mumbai|Bengaluru|Chennai|Kolkata|Pune|Gujarat|Maharashtra/i.test(text)) {
       return {
         type: 'country_of_origin',
