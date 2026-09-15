@@ -19,6 +19,7 @@ export const CompanyComplaints: React.FC = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'replied'>('all');
 
@@ -35,16 +36,22 @@ export const CompanyComplaints: React.FC = () => {
   const loadComplaints = async () => {
     try {
       setLoading(true);
+      setError(null);
       const res = await fetch(`/api/complaints?companyId=${companyId}`);
       if (res.ok) {
         const data = await res.json();
         setComplaints(data);
-        if (data.length > 0 && !selectedComplaint) {
-          setSelectedComplaint(data[0]);
+        if (data.length > 0) {
+          setSelectedComplaint((prev) => data.find((c: Complaint) => c.id === prev?.id) || data[0]);
+        } else {
+          setSelectedComplaint(null);
         }
+      } else {
+        setError('Failed to load customer reports from server.');
       }
     } catch (err) {
       console.error('Failed to load reports:', err);
+      setError('Network error connecting to Legal Metrology API.');
     } finally {
       setLoading(false);
     }
@@ -190,7 +197,17 @@ export const CompanyComplaints: React.FC = () => {
 
           {/* List of Cards */}
           <div className="space-y-2">
-            {loading ? (
+            {error ? (
+              <div className="p-8 text-center text-xs text-rose-800 bg-rose-50 space-y-3 rounded-2xl border border-rose-100">
+                <p className="font-bold">{error}</p>
+                <button
+                  onClick={loadComplaints}
+                  className="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-xs transition"
+                >
+                  Retry Loading Reports
+                </button>
+              </div>
+            ) : loading ? (
               <div className="p-8 text-center text-slate-400 text-xs bg-white rounded-2xl border border-slate-100">
                 Loading reports...
               </div>

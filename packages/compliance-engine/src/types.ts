@@ -11,9 +11,12 @@ export type DeclarationType =
 export type RuleStatus =
   | 'COMPLIANT'
   | 'POTENTIAL_NON_COMPLIANCE'
-  | 'MANUAL_REVIEW_RECOMMENDED';
+  | 'MANUAL_REVIEW_RECOMMENDED'
+  | 'NOT_APPLICABLE';
 
-export type RuleSeverity = 'HIGH' | 'MEDIUM' | 'LOW';
+export type RuleSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+
+export type Jurisdiction = 'CENTRAL' | 'STATE' | 'COMMODITY_SPECIFIC';
 
 export interface BoundingBox {
   x: number;      // pixels or percentages
@@ -38,13 +41,68 @@ export interface ImageQualityMetrics {
   is_usable: boolean;
 }
 
+export interface NormalizedMRP {
+  numericValue: number | null;
+  currency: 'INR' | string;
+  taxInclusive: boolean;
+  formattedDisplay: string;
+}
+
+export interface NormalizedNetQuantity {
+  numericValue: number | null;
+  unit: string | null;
+  normalizedKgOrL: number | null;
+  normalizedUnit: 'kg' | 'l' | 'g' | 'ml' | 'units' | null;
+  isStandardMetric: boolean;
+}
+
+export interface NormalizedMfgDate {
+  month: number | null;
+  year: number | null;
+  rawFormat: string | null;
+  isoDateString: string | null;
+}
+
+export interface NormalizedConsumerCare {
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  hasMultiChannel: boolean;
+}
+
+export interface NormalizedUnitSalePrice {
+  pricePerUnit: number | null;
+  unit: string | null;
+  formattedDisplay: string | null;
+}
+
+export interface NormalizedCountryOfOrigin {
+  country: string | null;
+  isDomestic: boolean;
+}
+
+export type NormalizedValue =
+  | NormalizedMRP
+  | NormalizedNetQuantity
+  | NormalizedMfgDate
+  | NormalizedConsumerCare
+  | NormalizedUnitSalePrice
+  | NormalizedCountryOfOrigin
+  | Record<string, any>;
+
 export interface ExtractedDeclaration {
   type: DeclarationType;
   label: string;
   detectedValue: string | null;
-  confidence: number;          // 0.0 - 1.0
+  rawText?: string;
   rawSnippet?: string;
+  normalized?: NormalizedValue;
+  confidence: number;          // overall derived confidence (0.0 - 1.0)
+  ocrConfidence?: number;      // raw EasyOCR model confidence
+  extractionConfidence?: number; // pattern match confidence
+  overallConfidence?: number;  // overall derived confidence
   boundingBox?: BoundingBox;
+  evidenceRegions?: BoundingBox[];
   notes?: string;
 }
 
@@ -59,6 +117,14 @@ export interface FontAnalysisResult {
   explanation: string;
 }
 
+export interface OfficialSourceMetadata {
+  authority: string;
+  documentName: string;
+  ruleNumber: string;
+  publicationDate?: string;
+  referenceUrl?: string;
+}
+
 export interface RuleDefinition {
   ruleId: string;
   ruleSetVersion: string;
@@ -69,11 +135,18 @@ export interface RuleDefinition {
   severity: RuleSeverity;
   active: boolean;
   expectedRequirement: string;
+  version: string;
+  effectiveFrom: string;       // YYYY-MM-DD
+  effectiveUntil?: string;     // YYYY-MM-DD
+  jurisdiction: Jurisdiction;
+  sourceMetadata: OfficialSourceMetadata;
+  applicableCategories?: string[]; // e.g. ["Food", "Cosmetics", "Household", "ALL"]
 }
 
 export interface RuleEvaluationResult {
   ruleId: string;
   ruleName: string;
+  ruleVersion: string;
   sectionReference: string;
   severity: RuleSeverity;
   status: RuleStatus;
@@ -83,15 +156,44 @@ export interface RuleEvaluationResult {
   explanation: string;
   evidenceSnippet?: string;
   evidenceBox?: BoundingBox;
+  evidenceRegions?: BoundingBox[];
+  officialSource?: string;
+  findingId?: string;
+}
+
+export interface Finding {
+  id: string;
+  ruleId: string;
+  ruleVersion: string;
+  declarationType?: DeclarationType;
+  severity: RuleSeverity;
+  status: RuleStatus;
+  title: string;
+  explanation: string;
+  confidence: number;
+  evidenceSnippet?: string;
+  evidenceRegions: BoundingBox[];
+  officialSource: string;
+}
+
+export interface ImageIntegrityMetadata {
+  sha256Hash: string;
+  fileSizeBytes: number;
+  mimeType: string;
+  width: number;
+  height: number;
+  timestamp: string;
 }
 
 export interface ComplianceSummary {
   overallStatus: RuleStatus;
-  score: number;               // 0 - 100
+  score: number;               // 0 - 100 Compliance Screening Score
+  aiConfidence: number;        // Average AI Model Detection Confidence %
   totalRulesEvaluated: number;
   compliantCount: number;
   flaggedCount: number;
   reviewCount: number;
+  notApplicableCount: number;
   ruleSetVersion: string;
   evaluatedAt: string;
   disclaimer: string;
@@ -100,6 +202,7 @@ export interface ComplianceSummary {
 export interface FullScanAnalysis {
   declarations: Record<DeclarationType, ExtractedDeclaration>;
   ruleResults: RuleEvaluationResult[];
+  findings: Finding[];
   fontAnalysis: FontAnalysisResult;
   summary: ComplianceSummary;
   ocrText: string;
@@ -107,6 +210,7 @@ export interface FullScanAnalysis {
   ocrRegions?: OCRRegion[];
   imageQuality?: ImageQualityMetrics;
   imageDimensions?: { width: number; height: number };
+  imageIntegrity?: ImageIntegrityMetadata;
   fingerprint: {
     brand?: string;
     productName?: string;

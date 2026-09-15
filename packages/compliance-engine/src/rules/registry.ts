@@ -1,0 +1,217 @@
+import { RuleDefinition, Jurisdiction } from '../types';
+
+export const CURRENT_RULESET_VERSION = '2026.1';
+export const STATUTORY_BODY = 'Ministry of Consumer Affairs, Food & Public Distribution (DoCA)';
+export const STATUTORY_ACT = 'Legal Metrology (Packaged Commodities) Rules, 2011';
+
+export const VERSIONED_RULES: RuleDefinition[] = [
+  {
+    ruleId: 'LM-RULE-001',
+    ruleSetVersion: CURRENT_RULESET_VERSION,
+    name: 'Manufacturer Identification & Address',
+    sectionReference: 'Rule 6(1)(a) Legal Metrology (Packaged Commodities) Rules, 2011',
+    category: 'Identity & Origin',
+    description: 'Every package shall bear the name and complete address of the manufacturer or packer.',
+    severity: 'HIGH',
+    active: true,
+    expectedRequirement: 'Full legal name and address of the manufacturing unit or packing premise.',
+    version: '2026.1',
+    effectiveFrom: '2011-03-07',
+    jurisdiction: 'CENTRAL',
+    sourceMetadata: {
+      authority: STATUTORY_BODY,
+      documentName: STATUTORY_ACT,
+      ruleNumber: 'Rule 6(1)(a)',
+      publicationDate: '2011-03-07',
+      referenceUrl: 'https://consumeraffairs.nic.in/acts-and-rules/legal-metrology',
+    },
+    applicableCategories: ['ALL'],
+  },
+  {
+    ruleId: 'LM-RULE-002',
+    ruleSetVersion: CURRENT_RULESET_VERSION,
+    name: 'Standard Net Quantity Statement',
+    sectionReference: 'Rule 6(1)(c) read with Rule 12',
+    category: 'Measurement',
+    description: 'Net quantity declaration must use standard metric units (g, kg, ml, l, m, or number) with correct spacing and symbol capitalization.',
+    severity: 'HIGH',
+    active: true,
+    expectedRequirement: 'Standard metric units (e.g., 200 g, 1 kg, 500 ml) without non-standard qualifiers.',
+    version: '2026.1',
+    effectiveFrom: '2011-03-07',
+    jurisdiction: 'CENTRAL',
+    sourceMetadata: {
+      authority: STATUTORY_BODY,
+      documentName: STATUTORY_ACT,
+      ruleNumber: 'Rule 6(1)(c) & Rule 12',
+      publicationDate: '2011-03-07',
+      referenceUrl: 'https://consumeraffairs.nic.in/acts-and-rules/legal-metrology',
+    },
+    applicableCategories: ['ALL'],
+  },
+  {
+    ruleId: 'LM-RULE-003',
+    ruleSetVersion: CURRENT_RULESET_VERSION,
+    name: 'Maximum Retail Price (MRP) Declaration',
+    sectionReference: 'Rule 6(1)(e) Legal Metrology (Packaged Commodities) Rules, 2011',
+    category: 'Pricing',
+    description: 'The retail sale price shall be clearly indicated as "MRP Rs..." or "Maximum Retail Price ₹..." inclusive of all taxes.',
+    severity: 'HIGH',
+    active: true,
+    expectedRequirement: 'Clear price indication explicitly mentioning "incl. of all taxes" or "inclusive of all taxes".',
+    version: '2026.1',
+    effectiveFrom: '2011-03-07',
+    jurisdiction: 'CENTRAL',
+    sourceMetadata: {
+      authority: STATUTORY_BODY,
+      documentName: STATUTORY_ACT,
+      ruleNumber: 'Rule 6(1)(e)',
+      publicationDate: '2011-03-07',
+      referenceUrl: 'https://consumeraffairs.nic.in/acts-and-rules/legal-metrology',
+    },
+    applicableCategories: ['ALL'],
+  },
+  {
+    ruleId: 'LM-RULE-004',
+    ruleSetVersion: CURRENT_RULESET_VERSION,
+    name: 'Month and Year of Manufacture / Packing',
+    sectionReference: 'Rule 6(1)(d) Legal Metrology (Packaged Commodities) Rules, 2011',
+    category: 'Traceability',
+    description: 'The month and year in which the commodity is manufactured or pre-packed or imported shall be clearly stated.',
+    severity: 'HIGH',
+    active: true,
+    expectedRequirement: 'Date indicated in MM/YYYY, MMM YYYY, or DD/MM/YYYY format.',
+    version: '2026.1',
+    effectiveFrom: '2011-03-07',
+    jurisdiction: 'CENTRAL',
+    sourceMetadata: {
+      authority: STATUTORY_BODY,
+      documentName: STATUTORY_ACT,
+      ruleNumber: 'Rule 6(1)(d)',
+      publicationDate: '2011-03-07',
+      referenceUrl: 'https://consumeraffairs.nic.in/acts-and-rules/legal-metrology',
+    },
+    applicableCategories: ['ALL'],
+  },
+  {
+    ruleId: 'LM-RULE-005',
+    ruleSetVersion: CURRENT_RULESET_VERSION,
+    name: 'Consumer Care Contact Details',
+    sectionReference: 'Rule 6(1)(n) & Rule 6(2)',
+    category: 'Consumer Grievance',
+    description: 'Package must display name, address, telephone number and email address of person/office to be contacted for consumer grievances.',
+    severity: 'HIGH',
+    active: true,
+    expectedRequirement: 'Mandatory phone/toll-free number, consumer care email, and physical/postal address.',
+    version: '2026.1',
+    effectiveFrom: '2011-03-07',
+    jurisdiction: 'CENTRAL',
+    sourceMetadata: {
+      authority: STATUTORY_BODY,
+      documentName: STATUTORY_ACT,
+      ruleNumber: 'Rule 6(1)(n) & Rule 6(2)',
+      publicationDate: '2011-03-07',
+      referenceUrl: 'https://consumeraffairs.nic.in/acts-and-rules/legal-metrology',
+    },
+    applicableCategories: ['ALL'],
+  },
+  {
+    ruleId: 'LM-RULE-006',
+    ruleSetVersion: CURRENT_RULESET_VERSION,
+    name: 'Unit Sale Price (USP)',
+    sectionReference: 'Rule 6(11) (as amended 2021/2022)',
+    category: 'Pricing Transparency',
+    description: 'Packages containing net quantity greater than 1 kg or 1 liter shall declare unit sale price per gram/kg or per ml/liter.',
+    severity: 'MEDIUM',
+    active: true,
+    expectedRequirement: 'Unit sale price expressed as "Rs. X per g / ml / kg / L".',
+    version: '2026.1',
+    effectiveFrom: '2022-04-01',
+    jurisdiction: 'CENTRAL',
+    sourceMetadata: {
+      authority: STATUTORY_BODY,
+      documentName: STATUTORY_ACT,
+      ruleNumber: 'Rule 6(11)',
+      publicationDate: '2021-11-02',
+      referenceUrl: 'https://consumeraffairs.nic.in/acts-and-rules/legal-metrology',
+    },
+    applicableCategories: ['Food', 'Cosmetics', 'Household', 'ALL'],
+  },
+  {
+    ruleId: 'LM-RULE-007',
+    ruleSetVersion: CURRENT_RULESET_VERSION,
+    name: 'Minimum Character Height & Font Size',
+    sectionReference: 'Rule 7 & Rule 8 (Minimum Height of Numeral and Letters)',
+    category: 'Readability',
+    description: 'The height of any numeral and letter shall not be less than the prescribed minimum corresponding to net quantity.',
+    severity: 'HIGH',
+    active: true,
+    expectedRequirement: 'Minimum 2.0 mm height for 50g-200g, 4.0 mm for 200g-1kg, 6.0 mm for >1kg.',
+    version: '2026.1',
+    effectiveFrom: '2011-03-07',
+    jurisdiction: 'CENTRAL',
+    sourceMetadata: {
+      authority: STATUTORY_BODY,
+      documentName: STATUTORY_ACT,
+      ruleNumber: 'Rule 7 & Rule 8',
+      publicationDate: '2011-03-07',
+      referenceUrl: 'https://consumeraffairs.nic.in/acts-and-rules/legal-metrology',
+    },
+    applicableCategories: ['ALL'],
+  },
+  {
+    ruleId: 'LM-RULE-008',
+    ruleSetVersion: CURRENT_RULESET_VERSION,
+    name: 'Country of Origin (For Imported Goods)',
+    sectionReference: 'Rule 6(1)(aa) Legal Metrology (Packaged Commodities) Rules, 2011',
+    category: 'Identity & Origin',
+    description: 'For packages containing imported commodities, the name of the country of origin or manufacture shall be mentioned.',
+    severity: 'MEDIUM',
+    active: true,
+    expectedRequirement: 'Country of Origin / "Made in [Country]" clearly stated if imported.',
+    version: '2026.1',
+    effectiveFrom: '2017-06-23',
+    jurisdiction: 'CENTRAL',
+    sourceMetadata: {
+      authority: STATUTORY_BODY,
+      documentName: STATUTORY_ACT,
+      ruleNumber: 'Rule 6(1)(aa)',
+      publicationDate: '2017-06-23',
+      referenceUrl: 'https://consumeraffairs.nic.in/acts-and-rules/legal-metrology',
+    },
+    applicableCategories: ['ALL'],
+  },
+];
+
+export class RuleRegistry {
+  public static getRulesForVersion(version: string = CURRENT_RULESET_VERSION): RuleDefinition[] {
+    return VERSIONED_RULES.filter((r) => r.version === version && r.active);
+  }
+
+  public static getRule(ruleId: string, version: string = CURRENT_RULESET_VERSION): RuleDefinition | undefined {
+    return VERSIONED_RULES.find((r) => r.ruleId === ruleId && r.version === version);
+  }
+
+  public static getActiveRules(
+    scanDateStr?: string,
+    version: string = CURRENT_RULESET_VERSION,
+    jurisdiction?: Jurisdiction
+  ): RuleDefinition[] {
+    const targetDate = scanDateStr ? new Date(scanDateStr) : new Date();
+
+    return VERSIONED_RULES.filter((rule) => {
+      if (rule.version !== version || !rule.active) return false;
+      if (jurisdiction && rule.jurisdiction !== jurisdiction && rule.jurisdiction !== 'CENTRAL') return false;
+
+      const effectiveFrom = new Date(rule.effectiveFrom);
+      if (targetDate < effectiveFrom) return false;
+
+      if (rule.effectiveUntil) {
+        const effectiveUntil = new Date(rule.effectiveUntil);
+        if (targetDate > effectiveUntil) return false;
+      }
+
+      return true;
+    });
+  }
+}

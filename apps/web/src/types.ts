@@ -1,9 +1,11 @@
 export type Role = 'CONSUMER' | 'COMPANY' | 'GOVERNMENT_OFFICER' | 'ADMIN';
+export type UserRole = Role;
 
 export type RuleStatus =
   | 'COMPLIANT'
   | 'POTENTIAL_NON_COMPLIANCE'
-  | 'MANUAL_REVIEW_RECOMMENDED';
+  | 'MANUAL_REVIEW_RECOMMENDED'
+  | 'NOT_APPLICABLE';
 
 export type ComplaintStatus =
   | 'SUBMITTED'
@@ -88,13 +90,15 @@ export interface ExtractedDeclaration {
   rawSnippet?: string;
   notes?: string;
   evidenceBox?: BoundingBox;
+  evidenceRegions?: BoundingBox[];
 }
 
 export interface RuleEvaluation {
   ruleId: string;
   ruleName: string;
+  ruleVersion?: string;
   sectionReference: string;
-  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   status: RuleStatus;
   confidence: number;
   detectedValue: string | null;
@@ -102,6 +106,32 @@ export interface RuleEvaluation {
   explanation: string;
   evidenceSnippet?: string;
   evidenceBox?: BoundingBox;
+  evidenceRegions?: BoundingBox[];
+  officialSource?: string;
+}
+
+export interface Finding {
+  id: string;
+  ruleId: string;
+  ruleVersion: string;
+  declarationType?: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  status: RuleStatus;
+  title: string;
+  explanation: string;
+  confidence: number;
+  evidenceSnippet?: string;
+  evidenceRegions: BoundingBox[];
+  officialSource: string;
+}
+
+export interface ImageIntegrityMetadata {
+  sha256Hash: string;
+  fileSizeBytes: number;
+  mimeType: string;
+  width: number;
+  height: number;
+  timestamp: string;
 }
 
 export interface FontAnalysis {
@@ -117,11 +147,13 @@ export interface FontAnalysis {
 
 export interface ComplianceSummary {
   overallStatus: RuleStatus;
-  score: number;
+  score: number; // Compliance Screening Score (0-100)
+  aiConfidence?: number; // AI Model Confidence %
   totalRulesEvaluated: number;
   compliantCount: number;
   flaggedCount: number;
   reviewCount: number;
+  notApplicableCount?: number;
   ruleSetVersion: string;
   evaluatedAt: string;
   disclaimer: string;
@@ -134,12 +166,14 @@ export interface ScanResult {
   analysis: {
     declarations: Record<string, ExtractedDeclaration>;
     ruleResults: RuleEvaluation[];
+    findings?: Finding[];
     fontAnalysis: FontAnalysis;
     summary: ComplianceSummary;
     ocrText: string;
     ocrRegions?: OCRRegion[];
     imageQuality?: ImageQualityMetrics;
     imageDimensions?: { width: number; height: number };
+    imageIntegrity?: ImageIntegrityMetadata;
     fingerprint: {
       brand?: string;
       productName?: string;

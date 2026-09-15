@@ -63,9 +63,17 @@ export class OCRClient {
     try {
       let buffer: Buffer;
       if (typeof imagePathOrBuffer === 'string') {
-        const absolutePath = path.isAbsolute(imagePathOrBuffer)
+        let absolutePath = path.isAbsolute(imagePathOrBuffer)
           ? imagePathOrBuffer
-          : path.resolve(process.cwd(), imagePathOrBuffer);
+          : path.resolve(process.cwd(), imagePathOrBuffer.replace(/^\//, ''));
+
+        if (!fs.existsSync(absolutePath)) {
+          // Fallback check in web public samples directory
+          const webPublicPath = path.resolve(process.cwd(), '../web/public', imagePathOrBuffer.replace(/^\//, ''));
+          if (fs.existsSync(webPublicPath)) {
+            absolutePath = webPublicPath;
+          }
+        }
 
         if (!fs.existsSync(absolutePath)) {
           throw new Error(`IMAGE_NOT_FOUND: File does not exist at '${absolutePath}'`);
@@ -81,7 +89,7 @@ export class OCRClient {
       formData.append('file', blob, filename);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
       const res = await fetch(`${this.serviceUrl}/ocr`, {
         method: 'POST',

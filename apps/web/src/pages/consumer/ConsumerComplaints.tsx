@@ -17,22 +17,29 @@ export const ConsumerComplaints: React.FC = () => {
   const { user } = useAuth();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [escalating, setEscalating] = useState<boolean>(false);
 
   const fetchComplaints = async () => {
     try {
       setLoading(true);
+      setError(null);
       const res = await fetch(`/api/complaints?consumerId=${user?.id || 'usr-consumer'}`);
       if (res.ok) {
         const data = await res.json();
         setComplaints(data);
-        if (data.length > 0 && !selectedComplaint) {
-          setSelectedComplaint(data[0]);
+        if (data.length > 0) {
+          setSelectedComplaint((prev) => data.find((c: Complaint) => c.id === prev?.id) || data[0]);
+        } else {
+          setSelectedComplaint(null);
         }
+      } else {
+        setError('Failed to load consumer reports (Server returned error).');
       }
     } catch (err) {
       console.error('Failed to fetch complaints:', err);
+      setError('Network error connecting to Legal Metrology API.');
     } finally {
       setLoading(false);
     }
@@ -111,7 +118,17 @@ export const ConsumerComplaints: React.FC = () => {
         </span>
       </div>
 
-      {loading ? (
+      {error ? (
+        <div className="bg-rose-50 border border-rose-200 rounded-3xl p-8 text-center space-y-3">
+          <p className="text-xs font-bold text-rose-900">{error}</p>
+          <button
+            onClick={fetchComplaints}
+            className="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-xs transition"
+          >
+            Retry Loading Reports
+          </button>
+        </div>
+      ) : loading ? (
         <div className="p-8 text-center text-slate-400 text-xs">Loading reports...</div>
       ) : complaints.length === 0 ? (
         <div className="bg-white rounded-3xl p-8 text-center border border-slate-200/80 text-xs text-slate-500">

@@ -4,6 +4,7 @@ import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import path from 'node:path';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import { db, initDatabase } from './db/index.js';
 import {
   users,
@@ -14,6 +15,9 @@ import {
   ocrRegions,
   declarations,
   ruleEvaluations,
+  evidence,
+  ruleVersions,
+  notifications,
   complaints,
   companyResponses,
   governmentReviews,
@@ -322,7 +326,7 @@ server.post('/api/scans/analyze', async (request, reply) => {
   // Real OCR Processing via Python Microservice (NO SILENT MOCK FALLBACK)
   let ocrResult: PythonOCRResponse;
   try {
-    const targetFileSource = imageBuffer || path.resolve(process.cwd(), imagePath.replace(/^\//, ''));
+    const targetFileSource = imageBuffer || imagePath;
     ocrResult = await OCRClient.processImage(targetFileSource, originalName, mimeType);
   } catch (err: any) {
     server.log.error(err);
@@ -344,7 +348,21 @@ server.post('/api/scans/analyze', async (request, reply) => {
     });
   }
 
-  // Run Compliance Engine with Real OCR Output & Real Bounding Boxes
+  // Calculate Image SHA-256 Hash for Tamper-Evident Evidence Integrity
+  const rawBytes = imageBuffer || (fs.existsSync(path.resolve(process.cwd(), imagePath.replace(/^\//, ''))) ? fs.readFileSync(path.resolve(process.cwd(), imagePath.replace(/^\//, ''))) : Buffer.from(imagePath));
+  const sha256Hash = crypto.createHash('sha256').update(rawBytes).digest('hex');
+  const now = new Date().toISOString();
+
+  const imageIntegrity = {
+    sha256Hash,
+    fileSizeBytes: rawBytes.length,
+    mimeType,
+    width: ocrResult.image.width,
+    height: ocrResult.image.height,
+    timestamp: now,
+  };
+
+  // Run Compliance Engine with Real OCR Output, Versioning, and Applicability
   const analysis = ComplianceEvaluator.analyzeScan(
     ocrResult.rawText,
     {
@@ -356,11 +374,17 @@ server.post('/api/scans/analyze', async (request, reply) => {
     ocrResult.regions,
     ocrResult.provider,
     ocrResult.quality,
-    ocrResult.image
+    ocrResult.image,
+    {
+      productCategory: targetProduct?.category,
+      isImported: targetProduct?.category === 'Imported',
+      jurisdiction: 'CENTRAL',
+      ruleSetVersion: CURRENT_RULESET_VERSION,
+      imageIntegrity,
+    }
   );
 
   const scanId = `scan-${Date.now()}`;
-  const now = new Date().toISOString();
 
   // Store scan metadata
   db.insert(scans)
@@ -370,8 +394,10 @@ server.post('/api/scans/analyze', async (request, reply) => {
       productId: targetProduct?.id || null,
       imagePath,
       originalFileName: originalName,
+      sha256Hash,
       status: analysis.summary.overallStatus,
       overallScore: analysis.summary.score,
+      aiConfidence: analysis.summary.aiConfidence,
       ruleSetVersion: analysis.summary.ruleSetVersion,
       ocrText: analysis.ocrText,
       ocrConfidence: ocrResult.regions.length > 0
@@ -384,13 +410,14 @@ server.post('/api/scans/analyze', async (request, reply) => {
       imageHeight: ocrResult.image.height,
       fontAnalysisJson: JSON.stringify(analysis.fontAnalysis),
       summaryJson: JSON.stringify(analysis.summary),
+      findingsJson: JSON.stringify(analysis.findings),
       brandDetected: analysis.fingerprint.brand || targetProduct?.brand,
       productNameDetected: analysis.fingerprint.productName || targetProduct?.name,
       createdAt: now,
     })
     .run();
 
-  // Save scan image record
+  // Save scan image record with SHA-256 hash
   db.insert(scanImages)
     .values({
       id: `img-${scanId}`,
@@ -398,6 +425,7 @@ server.post('/api/scans/analyze', async (request, reply) => {
       originalFileName: originalName,
       storagePath: imagePath,
       mimeType,
+      sha256Hash,
       width: ocrResult.image.width,
       height: ocrResult.image.height,
       createdAt: now,
@@ -423,7 +451,7 @@ server.post('/api/scans/analyze', async (request, reply) => {
       .run();
   }
 
-  // Save declarations
+  // Save declarations with normalized JSON and multi-region evidence arrays
   for (const [type, dec] of Object.entries(analysis.declarations)) {
     const d = dec as any;
     db.insert(declarations)
@@ -433,21 +461,27 @@ server.post('/api/scans/analyze', async (request, reply) => {
         declarationType: type,
         label: d.label,
         detectedValue: d.detectedValue || '',
+        rawText: d.rawText || null,
+        normalizedJson: d.normalized ? JSON.stringify(d.normalized) : null,
         confidence: d.confidence,
+        ocrConfidence: d.ocrConfidence || null,
+        extractionConfidence: d.extractionConfidence || null,
         rawSnippet: d.rawSnippet || null,
         notes: d.notes || null,
         boundingBoxJson: d.boundingBox ? JSON.stringify(d.boundingBox) : null,
+        evidenceRegionsJson: d.evidenceRegions ? JSON.stringify(d.evidenceRegions) : null,
       })
       .run();
   }
 
-  // Save rule evaluations
+  // Save rule evaluations and evidence records
   for (const rule of analysis.ruleResults) {
     db.insert(ruleEvaluations)
       .values({
         id: `rev-${scanId}-${rule.ruleId}`,
         scanId,
         ruleId: rule.ruleId,
+        ruleVersion: rule.ruleVersion || CURRENT_RULESET_VERSION,
         ruleName: rule.ruleName,
         sectionReference: rule.sectionReference,
         severity: rule.severity,
@@ -458,8 +492,26 @@ server.post('/api/scans/analyze', async (request, reply) => {
         explanation: rule.explanation,
         evidenceSnippet: rule.evidenceSnippet || null,
         evidenceBoxJson: rule.evidenceBox ? JSON.stringify(rule.evidenceBox) : null,
+        evidenceRegionsJson: rule.evidenceRegions ? JSON.stringify(rule.evidenceRegions) : null,
+        officialSource: rule.officialSource || null,
       })
       .run();
+
+    if (rule.evidenceRegions && rule.evidenceRegions.length > 0) {
+      db.insert(evidence)
+        .values({
+          id: `evi-${scanId}-${rule.ruleId}`,
+          scanId,
+          imageId: `img-${scanId}`,
+          ruleId: rule.ruleId,
+          declarationType: null,
+          sha256Hash,
+          ocrRegionIdsJson: JSON.stringify([]),
+          boundingBoxesJson: JSON.stringify(rule.evidenceRegions),
+          createdAt: now,
+        })
+        .run();
+    }
   }
 
   // Audit log
@@ -558,17 +610,21 @@ server.get('/api/scans/:id', async (request, reply) => {
   const company = product
     ? db.select().from(companies).where(eq(companies.id, product.companyId)).get()
     : null;
+  const parentScan = scan.parentScanId
+    ? db.select().from(scans).where(eq(scans.id, scan.parentScanId)).get()
+    : null;
 
   return reply.send({
     ...scan,
-    fontAnalysis: JSON.parse(scan.fontAnalysisJson),
-    summary: JSON.parse(scan.summaryJson),
+    fontAnalysis: scan.fontAnalysisJson ? JSON.parse(scan.fontAnalysisJson) : null,
+    summary: scan.summaryJson ? JSON.parse(scan.summaryJson) : null,
     ocrRegions: regions,
     imageQuality: scan.imageQualityJson ? JSON.parse(scan.imageQualityJson) : null,
     declarations: decs,
     ruleEvaluations: rules,
     product,
     company,
+    parentScan,
   });
 });
 
@@ -1259,6 +1315,503 @@ server.get('/api/audit-logs', async (request, reply) => {
 
   const logs = db.select().from(auditLogs).orderBy(desc(auditLogs.timestamp)).limit(50).all();
   return reply.send(logs);
+});
+
+server.get('/api/admin/audit-logs', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasAccess = await requireRole('ADMIN')(request, reply);
+  if (!hasAccess) return;
+
+  const logs = db.select().from(auditLogs).orderBy(desc(auditLogs.timestamp)).limit(50).all();
+  return reply.send(logs);
+});
+
+// -------------------------------------------------------------
+// PHASE 4: NOTIFICATIONS ROUTES
+// -------------------------------------------------------------
+
+server.get('/api/notifications', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const userNotifs = db
+    .select()
+    .from(notifications)
+    .where(eq(notifications.userId, authUser.userId))
+    .orderBy(desc(notifications.createdAt))
+    .limit(20)
+    .all();
+
+  return reply.send(userNotifs);
+});
+
+server.patch('/api/notifications/:id/read', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const { id } = request.params as { id: string };
+  db.update(notifications)
+    .set({ read: 1 })
+    .where(eq(notifications.id, id))
+    .run();
+
+  return reply.send({ success: true, notificationId: id });
+});
+
+// -------------------------------------------------------------
+// PHASE 4: PRODUCT MANAGEMENT ROUTES
+// -------------------------------------------------------------
+
+server.post('/api/products', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasRole = await requireRole('COMPANY', 'ADMIN')(request, reply);
+  if (!hasRole) return;
+
+  const body = request.body as {
+    name: string;
+    brand: string;
+    category: string;
+    barcode?: string;
+    standardNetQuantity?: string;
+    standardMrp?: string;
+    sampleImageUrl?: string;
+  };
+
+  if (!body.name || !body.brand || !body.category) {
+    return reply.status(400).send({ error: 'Product name, brand, and category are required' });
+  }
+
+  const companyId = authUser.companyId || 'comp-apex';
+  const productId = `prod-${Date.now()}`;
+  const now = new Date().toISOString();
+
+  db.insert(products)
+    .values({
+      id: productId,
+      companyId,
+      name: body.name,
+      brand: body.brand,
+      category: body.category,
+      barcode: body.barcode || null,
+      standardNetQuantity: body.standardNetQuantity || null,
+      standardMrp: body.standardMrp || null,
+      totalScans: 0,
+      potentialIssuesCount: 0,
+      verifiedViolationsCount: 0,
+      complianceStatus: 'COMPLIANT',
+      sampleImageUrl: body.sampleImageUrl || '/samples/apex_biscuits.svg',
+      createdAt: now,
+    })
+    .run();
+
+  db.insert(auditLogs)
+    .values({
+      id: `aud-${Date.now()}`,
+      actorId: authUser.userId,
+      actorRole: authUser.role,
+      action: 'PRODUCT_CREATED',
+      entityType: 'PRODUCT',
+      entityId: productId,
+      detailsJson: JSON.stringify({ name: body.name, companyId }),
+      timestamp: now,
+    })
+    .run();
+
+  return reply.status(201).send({ success: true, productId });
+});
+
+server.patch('/api/products/:id', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const { id } = request.params as { id: string };
+  const prod = db.select().from(products).where(eq(products.id, id)).get();
+  if (!prod) return reply.status(404).send({ error: 'Product not found' });
+
+  if (authUser.role === 'COMPANY' && prod.companyId !== authUser.companyId) {
+    return reply.status(403).send({ error: 'Forbidden: Access to another company product is denied' });
+  }
+
+  const body = request.body as Partial<{
+    name: string;
+    brand: string;
+    category: string;
+    standardNetQuantity: string;
+    standardMrp: string;
+    complianceStatus: string;
+  }>;
+
+  db.update(products)
+    .set({
+      name: body.name || prod.name,
+      brand: body.brand || prod.brand,
+      category: body.category || prod.category,
+      standardNetQuantity: body.standardNetQuantity || prod.standardNetQuantity,
+      standardMrp: body.standardMrp || prod.standardMrp,
+      complianceStatus: body.complianceStatus || prod.complianceStatus,
+    })
+    .where(eq(products.id, id))
+    .run();
+
+  return reply.send({ success: true, productId: id });
+});
+
+
+
+// -------------------------------------------------------------
+// PHASE 4: GOVERNMENT OFFICER CASE DECISION VERIFICATION
+// -------------------------------------------------------------
+
+server.patch('/api/complaints/:id/status', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasRole = await requireRole('GOVERNMENT_OFFICER', 'ADMIN')(request, reply);
+  if (!hasRole) return;
+
+  const { id } = request.params as { id: string };
+  const complaint = db.select().from(complaints).where(eq(complaints.id, id)).get();
+
+  if (!complaint) {
+    return reply.status(404).send({ error: 'Complaint not found' });
+  }
+
+  const body = request.body as {
+    status?: string; // 'VERIFIED' | 'UNDER_GOVERNMENT_REVIEW' | 'REJECTED' | 'RESOLVED' | 'CLOSED'
+    decision?: string; // 'VERIFY_VIOLATION' | 'REQUEST_MORE_EVIDENCE' | 'ORDER_INSPECTION' | 'REJECT' | 'CLOSE_CASE'
+    officerNotes?: string;
+    penaltyNoticeSection?: string;
+    penaltyAmount?: number;
+  };
+
+  const now = new Date().toISOString();
+  const decisionText = body.decision || body.status || 'VERIFY_VIOLATION';
+
+  db.insert(governmentReviews)
+    .values({
+      id: `gov-${Date.now()}`,
+      complaintId: id,
+      officerId: authUser.userId,
+      officerName: authUser.name || 'Legal Metrology Officer',
+      decision: decisionText,
+      officerNotes: body.officerNotes || 'Officer verified finding based on statutory PCR 2011 evidence.',
+      penaltyNoticeSection: body.penaltyNoticeSection || (decisionText === 'VERIFY_VIOLATION' ? 'Section 29 Legal Metrology Act, 2009' : null),
+      penaltyAmount: body.penaltyAmount || (decisionText === 'VERIFY_VIOLATION' ? 25000 : null),
+      reviewDate: now,
+    })
+    .run();
+
+  // Update complaint status
+  const newStatus = body.status || (body.decision === 'VERIFY_VIOLATION' ? 'VERIFIED' : body.decision === 'REJECT' ? 'REJECTED' : 'UNDER_GOVERNMENT_REVIEW');
+  db.update(complaints)
+    .set({
+      status: newStatus,
+      updatedAt: now,
+    })
+    .where(eq(complaints.id, id))
+    .run();
+
+  // Create In-App Notification for Consumer
+  db.insert(notifications)
+    .values({
+      id: `notif-${Date.now()}-cons`,
+      userId: complaint.consumerId,
+      title: `Grievance Updated (${id})`,
+      message: `Legal Metrology Officer ${authUser.name} issued decision: ${decisionText.replace(/_/g, ' ')}.`,
+      type: decisionText === 'VERIFY_VIOLATION' ? 'VIOLATION' : 'INFO',
+      read: 0,
+      entityType: 'COMPLAINT',
+      entityId: id,
+      createdAt: now,
+    })
+    .run();
+
+  // Create In-App Notification for Company representative users
+  const companyUsers = db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.companyId, complaint.companyId))
+    .all();
+
+  for (const cu of companyUsers) {
+    db.insert(notifications)
+      .values({
+        id: `notif-${Date.now()}-${cu.id}`,
+        userId: cu.id,
+        title: `Official Notice on Grievance ${id}`,
+        message: `Government decision: ${decisionText.replace(/_/g, ' ')}. ${body.penaltyAmount ? `Statutory penalty notice: ₹${body.penaltyAmount}` : ''}`,
+        type: decisionText === 'VERIFY_VIOLATION' ? 'VIOLATION' : 'WARNING',
+        read: 0,
+        entityType: 'COMPLAINT',
+        entityId: id,
+        createdAt: now,
+      })
+      .run();
+  }
+
+  // Audit Log
+  db.insert(auditLogs)
+    .values({
+      id: `aud-${Date.now()}`,
+      actorId: authUser.userId,
+      actorRole: authUser.role,
+      action: 'GOVERNMENT_OFFICER_DECISION_EXECUTED',
+      entityType: 'COMPLAINT',
+      entityId: id,
+      detailsJson: JSON.stringify({
+        decision: decisionText,
+        newStatus,
+        penaltyAmount: body.penaltyAmount,
+      }),
+      timestamp: now,
+    })
+    .run();
+
+  return reply.send({ success: true, complaintId: id, status: newStatus });
+});
+
+
+
+server.patch('/api/inspections/:id', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasRole = await requireRole('GOVERNMENT_OFFICER', 'ADMIN')(request, reply);
+  if (!hasRole) return;
+
+  const { id } = request.params as { id: string };
+  const insp = db.select().from(inspections).where(eq(inspections.id, id)).get();
+  if (!insp) return reply.status(404).send({ error: 'Inspection not found' });
+
+  const body = request.body as Partial<{
+    status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+    findingsSummary: string;
+    enforcementAction: string;
+  }>;
+
+  db.update(inspections)
+    .set({
+      status: body.status || insp.status,
+      findingsSummary: body.findingsSummary || insp.findingsSummary,
+      enforcementAction: body.enforcementAction || insp.enforcementAction,
+    })
+    .where(eq(inspections.id, id))
+    .run();
+
+  return reply.send({ success: true, inspectionId: id });
+});
+
+// -------------------------------------------------------------
+// PHASE 4: REAL ANALYTICS ROUTE
+// -------------------------------------------------------------
+
+server.get('/api/analytics/overview', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const totalScans = db.select({ count: sql<number>`count(*)` }).from(scans).get()?.count || 0;
+  const totalComplaints = db.select({ count: sql<number>`count(*)` }).from(complaints).get()?.count || 0;
+  const totalProducts = db.select({ count: sql<number>`count(*)` }).from(products).get()?.count || 0;
+  const totalCompanies = db.select({ count: sql<number>`count(*)` }).from(companies).get()?.count || 0;
+
+  const verifiedViolations = db
+    .select({ count: sql<number>`count(*)` })
+    .from(complaints)
+    .where(eq(complaints.status, 'VERIFIED'))
+    .get()?.count || 0;
+
+  const openComplaints = db
+    .select({ count: sql<number>`count(*)` })
+    .from(complaints)
+    .where(sql`status IN ('SUBMITTED', 'UNDER_COMPANY_REVIEW', 'UNDER_GOVERNMENT_REVIEW', 'ESCALATED')`)
+    .get()?.count || 0;
+
+  return reply.send({
+    totalScans,
+    totalComplaints,
+    totalProducts,
+    totalCompanies,
+    verifiedViolations,
+    openComplaints,
+    generatedAt: new Date().toISOString(),
+  });
+});
+
+// -------------------------------------------------------------
+// PHASE 4: ADMIN USER & RULE MANAGEMENT ROUTES
+// -------------------------------------------------------------
+
+server.get('/api/admin/users', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasRole = await requireRole('ADMIN')(request, reply);
+  if (!hasRole) return;
+
+  const allUsers = db.select().from(users).all();
+  return reply.send(allUsers);
+});
+
+server.post('/api/admin/users', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasRole = await requireRole('ADMIN')(request, reply);
+  if (!hasRole) return;
+
+  const body = request.body as {
+    email: string;
+    password?: string;
+    name: string;
+    role: 'CONSUMER' | 'COMPANY' | 'GOVERNMENT_OFFICER' | 'ADMIN';
+    companyId?: string;
+    designation?: string;
+    department?: string;
+    phone?: string;
+  };
+
+  if (!body.email || !body.name || !body.role) {
+    return reply.status(400).send({ error: 'Email, name, and role are required' });
+  }
+
+  const existing = db.select().from(users).where(eq(users.email, body.email)).get();
+  if (existing) {
+    return reply.status(409).send({ error: 'User with this email already exists' });
+  }
+
+  const userId = `usr-${body.role.toLowerCase()}-${Date.now()}`;
+  const passwordHash = bcrypt.hashSync(body.password || 'SecurityPass2026!', 10);
+  const now = new Date().toISOString();
+
+  db.insert(users)
+    .values({
+      id: userId,
+      email: body.email,
+      passwordHash,
+      name: body.name,
+      role: body.role,
+      companyId: body.companyId || null,
+      phone: body.phone || null,
+      designation: body.designation || null,
+      department: body.department || null,
+      createdAt: now,
+    })
+    .run();
+
+  return reply.status(201).send({ success: true, userId, email: body.email, role: body.role });
+});
+
+server.patch('/api/admin/users/:id', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasRole = await requireRole('ADMIN')(request, reply);
+  if (!hasRole) return;
+
+  const { id } = request.params as { id: string };
+  const targetUser = db.select().from(users).where(eq(users.id, id)).get();
+  if (!targetUser) return reply.status(404).send({ error: 'User not found' });
+
+  const body = request.body as Partial<{
+    name: string;
+    role: 'CONSUMER' | 'COMPANY' | 'GOVERNMENT_OFFICER' | 'ADMIN';
+    companyId: string;
+    designation: string;
+    department: string;
+    phone: string;
+  }>;
+
+  db.update(users)
+    .set({
+      name: body.name || targetUser.name,
+      role: body.role || targetUser.role,
+      companyId: body.companyId !== undefined ? body.companyId : targetUser.companyId,
+      designation: body.designation !== undefined ? body.designation : targetUser.designation,
+      department: body.department !== undefined ? body.department : targetUser.department,
+      phone: body.phone !== undefined ? body.phone : targetUser.phone,
+    })
+    .where(eq(users.id, id))
+    .run();
+
+  return reply.send({ success: true, userId: id });
+});
+
+server.get('/api/admin/rules', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const dbVersions = db.select().from(ruleVersions).orderBy(desc(ruleVersions.createdAt)).all();
+  return reply.send({
+    currentVersion: CURRENT_RULESET_VERSION,
+    ruleVersions: dbVersions,
+    activeRules: LEGAL_METROLOGY_RULES,
+  });
+});
+
+server.post('/api/admin/rules', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasRole = await requireRole('ADMIN')(request, reply);
+  if (!hasRole) return;
+
+  const body = request.body as {
+    ruleId: string;
+    version: string;
+    name: string;
+    sectionReference: string;
+    jurisdiction?: string;
+    effectiveFrom: string;
+    effectiveUntil?: string;
+    authority?: string;
+  };
+
+  const id = `ver-${Date.now()}`;
+  const now = new Date().toISOString();
+
+  db.insert(ruleVersions)
+    .values({
+      id,
+      ruleId: body.ruleId,
+      version: body.version || CURRENT_RULESET_VERSION,
+      name: body.name,
+      sectionReference: body.sectionReference,
+      jurisdiction: body.jurisdiction || 'CENTRAL',
+      status: 'ACTIVE',
+      effectiveFrom: body.effectiveFrom || now.split('T')[0],
+      effectiveUntil: body.effectiveUntil || null,
+      sourceMetadataJson: JSON.stringify({
+        authority: body.authority || 'Department of Consumer Affairs (DoCA)',
+        documentName: 'Legal Metrology (Packaged Commodities) Rules, 2011',
+        ruleNumber: body.sectionReference,
+      }),
+      createdAt: now,
+    })
+    .run();
+
+  return reply.status(201).send({ success: true, ruleVersionId: id });
+});
+
+server.patch('/api/admin/rules/:id/status', async (request, reply) => {
+  const authUser = await authenticate(request, reply);
+  if (!authUser) return;
+
+  const hasRole = await requireRole('ADMIN')(request, reply);
+  if (!hasRole) return;
+
+  const { id } = request.params as { id: string };
+  const body = request.body as { status: string };
+
+  db.update(ruleVersions)
+    .set({ status: body.status || 'ACTIVE' })
+    .where(eq(ruleVersions.id, id))
+    .run();
+
+  return reply.send({ success: true, id, status: body.status });
 });
 
 // -------------------------------------------------------------

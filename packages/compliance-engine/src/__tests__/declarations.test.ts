@@ -67,7 +67,84 @@ describe('DeclarationExtractor', () => {
     const text = 'Made in India';
     const result = DeclarationExtractor.extract(text);
 
-    expect(result.country_of_origin.detectedValue).toContain('India');
+    expect(result.country_of_origin.detectedValue).toBe('India');
     expect(result.country_of_origin.confidence).toBeGreaterThan(0.7);
+  });
+
+  it('should extract MRP variants accurately', () => {
+    const variants = [
+      { text: 'MRP ₹70.00', expected: '70.00' },
+      { text: 'MRP Rs. 70', expected: '70' },
+      { text: 'M.R.P. 70.00', expected: '70.00' },
+      { text: 'MAXIMUM RETAIL PRICE Rs 70.00', expected: '70.00' },
+      { text: '₹ 70.00', expected: '70.00' },
+    ];
+
+    for (const v of variants) {
+      const res = DeclarationExtractor.extract(v.text);
+      expect(res.mrp.detectedValue).not.toBeNull();
+      expect(res.mrp.detectedValue).toContain(v.expected);
+    }
+  });
+
+  it('should extract Net Quantity variants accurately', () => {
+    const variants = [
+      { text: '250 g', expected: '250 g' },
+      { text: '250g', expected: '250g' },
+      { text: 'NET WEIGHT 250 g', expected: '250 g' },
+      { text: 'BISCUITS NET WEIGHT 250 g', expected: '250 g' },
+      { text: 'NET WT. 250G', expected: '250G' },
+      { text: 'NET QTY 250 g', expected: '250 g' },
+    ];
+
+    for (const v of variants) {
+      const res = DeclarationExtractor.extract(v.text);
+      expect(res.net_quantity.detectedValue).not.toBeNull();
+      expect(res.net_quantity.detectedValue).toContain('250');
+    }
+  });
+
+  it('should extract Manufacturing Date variants accurately', () => {
+    const variants = [
+      'MFD 02/11/23',
+      'MFG 02/11/23',
+      'MFD: 02/11/23',
+      'PKD 02/11/23',
+      'DATE OF PACKING 02/11/23',
+    ];
+
+    for (const text of variants) {
+      const res = DeclarationExtractor.extract(text);
+      expect(res.mfg_date.detectedValue).not.toBeNull();
+      expect(res.mfg_date.detectedValue).toContain('02/11/23');
+    }
+  });
+
+  it('should extract Consumer Care variants accurately', () => {
+    const variants = [
+      { text: 'Consumer Care Cell: 1800-123-4567', expected: '1800-123-4567' },
+      { text: 'Customer Care: care@brand.com', expected: 'care@brand.com' },
+      { text: 'Toll Free: 1800123456', expected: '1800123456' },
+      { text: 'Call: 9876543210 Email: help@brand.in', expected: 'help@brand.in' },
+    ];
+
+    for (const v of variants) {
+      const res = DeclarationExtractor.extract(v.text);
+      expect(res.consumer_care.detectedValue).not.toBeNull();
+    }
+  });
+
+  it('should extract Manufacturer variants accurately', () => {
+    const variants = [
+      'Manufactured by Apex Foods Ltd, Sector 18 Gurugram',
+      'Marketed by Apex Foods Pvt Ltd',
+      'Manufactured & Packed by Apex Industries Ltd',
+      'Manufactured at Plot 42 Industrial Area Haridwar',
+    ];
+
+    for (const text of variants) {
+      const res = DeclarationExtractor.extract(text);
+      expect(res.manufacturer.detectedValue).not.toBeNull();
+    }
   });
 });

@@ -2,227 +2,439 @@ import {
   ComplianceSummary,
   DeclarationType,
   ExtractedDeclaration,
+  Finding,
   FontAnalysisResult,
   FullScanAnalysis,
+  ImageQualityMetrics,
+  ImageIntegrityMetadata,
+  OCRRegion,
   RuleEvaluationResult,
   RuleStatus,
-  OCRRegion,
-  ImageQualityMetrics,
+  Jurisdiction,
 } from '../types';
-import { CURRENT_RULESET_VERSION } from '../rules/definitions';
+import { CURRENT_RULESET_VERSION, RuleRegistry } from '../rules/registry';
+import { ApplicabilityContext, ApplicabilityEngine } from '../applicability/engine';
 import { DeclarationExtractor } from '../extractor/declarations';
 import { FontAnalyzer, FontCalibrationParams } from '../font/analyzer';
+
+export interface EvaluationOptions {
+  productCategory?: string;
+  isImported?: boolean;
+  jurisdiction?: Jurisdiction;
+  scanDate?: string;
+  ruleSetVersion?: string;
+  imageIntegrity?: ImageIntegrityMetadata;
+  imageQuality?: ImageQualityMetrics;
+  rawOcrText?: string;
+  ocrRegions?: OCRRegion[];
+}
 
 export class ComplianceEvaluator {
   public static evaluateDeclarations(
     declarations: Record<DeclarationType, ExtractedDeclaration>,
-    fontAnalysis: FontAnalysisResult
-  ): RuleEvaluationResult[] {
-    const results: RuleEvaluationResult[] = [];
+    fontAnalysis: FontAnalysisResult,
+    options: EvaluationOptions = {}
+  ): { ruleResults: RuleEvaluationResult[]; findings: Finding[] } {
+    const ruleVersion = options.ruleSetVersion || CURRENT_RULESET_VERSION;
+    const activeRules = RuleRegistry.getActiveRules(options.scanDate, ruleVersion, options.jurisdiction);
 
-    // Rule 1: Manufacturer
-    const mfg = declarations.manufacturer;
-    if (mfg && mfg.detectedValue) {
-      const isHighConf = mfg.confidence >= 0.85;
-      results.push({
-        ruleId: 'LM-RULE-001',
-        ruleName: 'Manufacturer Identification & Address',
-        sectionReference: 'Rule 6(1)(a)',
-        severity: 'HIGH',
-        status: isHighConf ? 'COMPLIANT' : 'MANUAL_REVIEW_RECOMMENDED',
-        confidence: mfg.confidence,
-        detectedValue: mfg.detectedValue,
-        expectedRequirement: 'Complete name & premise address of manufacturer/packer',
-        explanation: isHighConf
-          ? 'Manufacturer identity statement located with legal premise details.'
-          : 'Manufacturer declaration detected with lower confidence; postal verification recommended.',
-        evidenceSnippet: mfg.rawSnippet,
-        evidenceBox: mfg.boundingBox,
-      });
-    } else {
-      results.push({
-        ruleId: 'LM-RULE-001',
-        ruleName: 'Manufacturer Identification & Address',
-        sectionReference: 'Rule 6(1)(a)',
-        severity: 'HIGH',
-        status: 'POTENTIAL_NON_COMPLIANCE',
-        confidence: 0.91,
-        detectedValue: null,
-        expectedRequirement: 'Complete name & premise address of manufacturer/packer',
-        explanation: 'Mandatory manufacturer/packer identification was not confidently detected on the scanned label.',
-      });
+    const ruleResults: RuleEvaluationResult[] = [];
+    const findings: Finding[] = [];
+
+    const netQuantityVal = (declarations.net_quantity?.normalized as any)?.numericValue || undefined;
+    const netQuantityUnit = (declarations.net_quantity?.normalized as any)?.unit || undefined;
+
+    // Assess overall OCR text coverage to distinguish "NOT FOUND BY OCR" from "DEFINITIVELY MISSING"
+    const detectedCount = Object.values(declarations).filter((d) => d && d.detectedValue).length;
+    const rawTextWords = (options.rawOcrText || '').split(/\s+/).filter(w => w.length > 0).length;
+    const isLowCoverage = detectedCount < 2 && (rawTextWords < 10 || (options.imageQuality && options.imageQuality.score < 0.20));
+
+    const context: ApplicabilityContext = {
+      productCategory: options.productCategory,
+      isImported: options.isImported,
+      netQuantityVal,
+      netQuantityUnit,
+      jurisdiction: options.jurisdiction || 'CENTRAL',
+      scanDate: options.scanDate,
+    };
+
+    for (const ruleDef of activeRules) {
+      const appCheck = ApplicabilityEngine.evaluate(ruleDef, context);
+
+      // 1. Not Applicable handling
+      if (!appCheck.isApplicable) {
+        ruleResults.push({
+          ruleId: ruleDef.ruleId,
+          ruleName: ruleDef.name,
+          ruleVersion: ruleDef.version,
+          sectionReference: ruleDef.sectionReference,
+          severity: ruleDef.severity,
+          status: 'NOT_APPLICABLE',
+          confidence: 1.0,
+          detectedValue: null,
+          expectedRequirement: ruleDef.expectedRequirement,
+          explanation: appCheck.reason || 'Rule not applicable to current product packaging parameters.',
+          officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+        });
+        continue;
+      }
+
+      // 2. Evaluate Rule 1: Manufacturer
+      if (ruleDef.ruleId === 'LM-RULE-001') {
+        const mfg = declarations.manufacturer;
+        if (mfg && mfg.detectedValue) {
+          const isHighConf = mfg.confidence >= 0.85;
+          const status: RuleStatus = isHighConf ? 'COMPLIANT' : 'MANUAL_REVIEW_RECOMMENDED';
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status,
+            confidence: mfg.confidence,
+            detectedValue: mfg.detectedValue,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: isHighConf
+              ? 'Manufacturer identity statement located with legal premise details.'
+              : 'Manufacturer declaration detected with lower confidence; postal verification recommended.',
+            evidenceSnippet: mfg.rawSnippet,
+            evidenceBox: mfg.boundingBox,
+            evidenceRegions: mfg.evidenceRegions || (mfg.boundingBox ? [mfg.boundingBox] : []),
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+          if (status !== 'COMPLIANT') {
+            findings.push(this.createFinding(result, 'manufacturer'));
+          }
+        } else {
+          const status: RuleStatus = isLowCoverage ? 'MANUAL_REVIEW_RECOMMENDED' : 'POTENTIAL_NON_COMPLIANCE';
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status,
+            confidence: isLowCoverage ? 0.60 : 0.91,
+            detectedValue: null,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: isLowCoverage
+              ? 'Manufacturer declaration not located due to low OCR coverage. Manual verification recommended.'
+              : 'Mandatory manufacturer/packer identification was not detected on the scanned label.',
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+          findings.push(this.createFinding(result, 'manufacturer'));
+        }
+      }
+
+      // 3. Evaluate Rule 2: Net Quantity
+      else if (ruleDef.ruleId === 'LM-RULE-002') {
+        const netQty = declarations.net_quantity;
+        if (netQty && netQty.detectedValue) {
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status: 'COMPLIANT',
+            confidence: netQty.confidence,
+            detectedValue: netQty.detectedValue,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: `Standard metric declaration verified: "${netQty.detectedValue}".`,
+            evidenceSnippet: netQty.rawSnippet,
+            evidenceBox: netQty.boundingBox,
+            evidenceRegions: netQty.evidenceRegions || (netQty.boundingBox ? [netQty.boundingBox] : []),
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+        } else {
+          const status: RuleStatus = isLowCoverage ? 'MANUAL_REVIEW_RECOMMENDED' : 'POTENTIAL_NON_COMPLIANCE';
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status,
+            confidence: isLowCoverage ? 0.60 : 0.95,
+            detectedValue: null,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: isLowCoverage
+              ? 'Net quantity declaration not located due to low OCR coverage. Manual verification recommended.'
+              : 'Net quantity statement missing or unrecognizable in standard metric formats.',
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+          findings.push(this.createFinding(result, 'net_quantity'));
+        }
+      }
+
+      // 4. Evaluate Rule 3: MRP
+      else if (ruleDef.ruleId === 'LM-RULE-003') {
+        const mrp = declarations.mrp;
+        if (mrp && mrp.detectedValue) {
+          const hasTaxInclusive = (mrp.normalized as any)?.taxInclusive ?? /incl/i.test(mrp.detectedValue);
+          const status: RuleStatus = hasTaxInclusive ? 'COMPLIANT' : 'MANUAL_REVIEW_RECOMMENDED';
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status,
+            confidence: mrp.confidence,
+            detectedValue: mrp.detectedValue,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: hasTaxInclusive
+              ? 'Retail price properly formatted with mandatory "incl. of all taxes" clause.'
+              : 'Retail price declared, but explicit "inclusive of all taxes" wording requires officer verification.',
+            evidenceSnippet: mrp.rawSnippet,
+            evidenceBox: mrp.boundingBox,
+            evidenceRegions: mrp.evidenceRegions || (mrp.boundingBox ? [mrp.boundingBox] : []),
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+          if (status !== 'COMPLIANT') {
+            findings.push(this.createFinding(result, 'mrp'));
+          }
+        } else {
+          const status: RuleStatus = isLowCoverage ? 'MANUAL_REVIEW_RECOMMENDED' : 'POTENTIAL_NON_COMPLIANCE';
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status,
+            confidence: isLowCoverage ? 0.60 : 0.94,
+            detectedValue: null,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: isLowCoverage
+              ? 'MRP declaration not located due to low OCR coverage. Manual verification recommended.'
+              : 'Maximum Retail Price declaration not found on package panel.',
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+          findings.push(this.createFinding(result, 'mrp'));
+        }
+      }
+
+      // 5. Evaluate Rule 4: Mfg Date
+      else if (ruleDef.ruleId === 'LM-RULE-004') {
+        const mfgDate = declarations.mfg_date;
+        if (mfgDate && mfgDate.detectedValue) {
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status: 'COMPLIANT',
+            confidence: mfgDate.confidence,
+            detectedValue: mfgDate.detectedValue,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: `Manufacturing / packing date identified: ${mfgDate.detectedValue}.`,
+            evidenceSnippet: mfgDate.rawSnippet,
+            evidenceBox: mfgDate.boundingBox,
+            evidenceRegions: mfgDate.evidenceRegions || (mfgDate.boundingBox ? [mfgDate.boundingBox] : []),
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+        } else {
+          const status: RuleStatus = isLowCoverage ? 'MANUAL_REVIEW_RECOMMENDED' : 'POTENTIAL_NON_COMPLIANCE';
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status,
+            confidence: isLowCoverage ? 0.60 : 0.92,
+            detectedValue: null,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: isLowCoverage
+              ? 'Manufacturing / packing date not located due to low OCR coverage. Manual verification recommended.'
+              : 'Month and Year of packing/manufacture was not detected.',
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+          findings.push(this.createFinding(result, 'mfg_date'));
+        }
+      }
+
+      // 6. Evaluate Rule 5: Consumer Care
+      else if (ruleDef.ruleId === 'LM-RULE-005') {
+        const care = declarations.consumer_care;
+        if (care && care.detectedValue) {
+          const hasMultiChannel = (care.normalized as any)?.hasMultiChannel ?? (care.detectedValue.includes('Email') && care.detectedValue.includes('Tel'));
+          const status: RuleStatus = hasMultiChannel ? 'COMPLIANT' : 'MANUAL_REVIEW_RECOMMENDED';
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status,
+            confidence: care.confidence,
+            detectedValue: care.detectedValue,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: hasMultiChannel
+              ? 'Multi-channel consumer care contact details verified (phone and email detected).'
+              : 'Partial consumer contact information located; full postal & digital channel verification recommended.',
+            evidenceSnippet: care.rawSnippet,
+            evidenceBox: care.boundingBox,
+            evidenceRegions: care.evidenceRegions || (care.boundingBox ? [care.boundingBox] : []),
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+          if (status !== 'COMPLIANT') {
+            findings.push(this.createFinding(result, 'consumer_care'));
+          }
+        } else {
+          const status: RuleStatus = isLowCoverage ? 'MANUAL_REVIEW_RECOMMENDED' : 'POTENTIAL_NON_COMPLIANCE';
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status,
+            confidence: isLowCoverage ? 0.60 : 0.93,
+            detectedValue: null,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: isLowCoverage
+              ? 'Consumer care contact details not located due to low OCR coverage. Manual verification recommended.'
+              : 'No mandatory consumer care email or telephone number detected on the scanned panel.',
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+          findings.push(this.createFinding(result, 'consumer_care'));
+        }
+      }
+
+      // 7. Evaluate Rule 6: Unit Sale Price
+      else if (ruleDef.ruleId === 'LM-RULE-006') {
+        const usp = declarations.unit_sale_price;
+        if (usp && usp.detectedValue) {
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status: 'COMPLIANT',
+            confidence: usp.confidence,
+            detectedValue: usp.detectedValue,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: `Unit sale price properly declared: "${usp.detectedValue}".`,
+            evidenceSnippet: usp.rawSnippet,
+            evidenceBox: usp.boundingBox,
+            evidenceRegions: usp.evidenceRegions || (usp.boundingBox ? [usp.boundingBox] : []),
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+        } else {
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status: 'MANUAL_REVIEW_RECOMMENDED',
+            confidence: 0.75,
+            detectedValue: null,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: 'Unit sale price declaration not identified. Required for packages under amended Rule 6(11).',
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+          findings.push(this.createFinding(result, 'unit_sale_price'));
+        }
+      }
+
+      // 8. Evaluate Rule 7: Minimum Font Size
+      else if (ruleDef.ruleId === 'LM-RULE-007') {
+        const result: RuleEvaluationResult = {
+          ruleId: ruleDef.ruleId,
+          ruleName: ruleDef.name,
+          ruleVersion: ruleDef.version,
+          sectionReference: ruleDef.sectionReference,
+          severity: ruleDef.severity,
+          status: fontAnalysis.status,
+          confidence: fontAnalysis.confidence,
+          detectedValue: `${fontAnalysis.estimatedCharHeightMm} mm (estimated)`,
+          expectedRequirement: `Minimum ${fontAnalysis.requiredMinimumMm} mm based on net quantity`,
+          explanation: fontAnalysis.explanation,
+          officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+        };
+        ruleResults.push(result);
+        if (fontAnalysis.status !== 'COMPLIANT' && fontAnalysis.status !== 'NOT_APPLICABLE') {
+          findings.push(this.createFinding(result));
+        }
+      }
+
+      // 9. Evaluate Rule 8: Country of Origin
+      else if (ruleDef.ruleId === 'LM-RULE-008') {
+        const origin = declarations.country_of_origin;
+        if (origin && origin.detectedValue) {
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status: 'COMPLIANT',
+            confidence: origin.confidence,
+            detectedValue: origin.detectedValue,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: `Country of Origin statement verified: "${origin.detectedValue}".`,
+            evidenceSnippet: origin.rawSnippet,
+            evidenceBox: origin.boundingBox,
+            evidenceRegions: origin.evidenceRegions || (origin.boundingBox ? [origin.boundingBox] : []),
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+        } else {
+          const result: RuleEvaluationResult = {
+            ruleId: ruleDef.ruleId,
+            ruleName: ruleDef.name,
+            ruleVersion: ruleDef.version,
+            sectionReference: ruleDef.sectionReference,
+            severity: ruleDef.severity,
+            status: 'MANUAL_REVIEW_RECOMMENDED',
+            confidence: 0.65,
+            detectedValue: null,
+            expectedRequirement: ruleDef.expectedRequirement,
+            explanation: 'Country of Origin not stated. Required for imported commodities under Rule 6(1)(aa).',
+            officialSource: `${ruleDef.sourceMetadata.documentName}, ${ruleDef.sourceMetadata.ruleNumber}`,
+          };
+          ruleResults.push(result);
+          findings.push(this.createFinding(result, 'country_of_origin'));
+        }
+      }
     }
 
-    // Rule 2: Net Quantity
-    const netQty = declarations.net_quantity;
-    if (netQty && netQty.detectedValue) {
-      results.push({
-        ruleId: 'LM-RULE-002',
-        ruleName: 'Standard Net Quantity Statement',
-        sectionReference: 'Rule 6(1)(c) & Rule 12',
-        severity: 'HIGH',
-        status: 'COMPLIANT',
-        confidence: netQty.confidence,
-        detectedValue: netQty.detectedValue,
-        expectedRequirement: 'Standard metric unit (g, kg, ml, l, or count)',
-        explanation: `Standard metric declaration verified: "${netQty.detectedValue}".`,
-        evidenceSnippet: netQty.rawSnippet,
-        evidenceBox: netQty.boundingBox,
-      });
-    } else {
-      results.push({
-        ruleId: 'LM-RULE-002',
-        ruleName: 'Standard Net Quantity Statement',
-        sectionReference: 'Rule 6(1)(c) & Rule 12',
-        severity: 'HIGH',
-        status: 'POTENTIAL_NON_COMPLIANCE',
-        confidence: 0.95,
-        detectedValue: null,
-        expectedRequirement: 'Standard metric unit (g, kg, ml, l, or count)',
-        explanation: 'Net quantity statement missing or unrecognizable in standard metric formats.',
-      });
-    }
+    return { ruleResults, findings };
+  }
 
-    // Rule 3: MRP
-    const mrp = declarations.mrp;
-    if (mrp && mrp.detectedValue) {
-      const hasTaxInclusive = /incl/i.test(mrp.detectedValue);
-      results.push({
-        ruleId: 'LM-RULE-003',
-        ruleName: 'Maximum Retail Price (MRP) Declaration',
-        sectionReference: 'Rule 6(1)(e)',
-        severity: 'HIGH',
-        status: hasTaxInclusive ? 'COMPLIANT' : 'MANUAL_REVIEW_RECOMMENDED',
-        confidence: mrp.confidence,
-        detectedValue: mrp.detectedValue,
-        expectedRequirement: 'MRP Rs... inclusive of all taxes',
-        explanation: hasTaxInclusive
-          ? 'Retail price properly formatted with mandatory "incl. of all taxes" clause.'
-          : 'Retail price declared, but explicit "inclusive of all taxes" wording requires officer verification.',
-        evidenceSnippet: mrp.rawSnippet,
-        evidenceBox: mrp.boundingBox,
-      });
-    } else {
-      results.push({
-        ruleId: 'LM-RULE-003',
-        ruleName: 'Maximum Retail Price (MRP) Declaration',
-        sectionReference: 'Rule 6(1)(e)',
-        severity: 'HIGH',
-        status: 'POTENTIAL_NON_COMPLIANCE',
-        confidence: 0.94,
-        detectedValue: null,
-        expectedRequirement: 'MRP Rs... inclusive of all taxes',
-        explanation: 'Maximum Retail Price declaration not found on package panel.',
-      });
-    }
-
-    // Rule 4: Mfg Date
-    const mfgDate = declarations.mfg_date;
-    if (mfgDate && mfgDate.detectedValue) {
-      results.push({
-        ruleId: 'LM-RULE-004',
-        ruleName: 'Month and Year of Manufacture / Packing',
-        sectionReference: 'Rule 6(1)(d)',
-        severity: 'HIGH',
-        status: 'COMPLIANT',
-        confidence: mfgDate.confidence,
-        detectedValue: mfgDate.detectedValue,
-        expectedRequirement: 'Month & year of manufacture or packing in MM/YYYY or Month YYYY',
-        explanation: `Manufacturing / packing date identified: ${mfgDate.detectedValue}.`,
-        evidenceSnippet: mfgDate.rawSnippet,
-        evidenceBox: mfgDate.boundingBox,
-      });
-    } else {
-      results.push({
-        ruleId: 'LM-RULE-004',
-        ruleName: 'Month and Year of Manufacture / Packing',
-        sectionReference: 'Rule 6(1)(d)',
-        severity: 'HIGH',
-        status: 'POTENTIAL_NON_COMPLIANCE',
-        confidence: 0.92,
-        detectedValue: null,
-        expectedRequirement: 'Month & year of manufacture or packing in MM/YYYY or Month YYYY',
-        explanation: 'Month and Year of packing/manufacture was not detected.',
-      });
-    }
-
-    // Rule 5: Consumer Care
-    const care = declarations.consumer_care;
-    if (care && care.detectedValue) {
-      const hasEmailAndPhone = care.detectedValue.includes('Email') && care.detectedValue.includes('Tel');
-      results.push({
-        ruleId: 'LM-RULE-005',
-        ruleName: 'Consumer Care Contact Details',
-        sectionReference: 'Rule 6(1)(n) & Rule 6(2)',
-        severity: 'HIGH',
-        status: hasEmailAndPhone ? 'COMPLIANT' : 'MANUAL_REVIEW_RECOMMENDED',
-        confidence: care.confidence,
-        detectedValue: care.detectedValue,
-        expectedRequirement: 'Telephone number, email address, and postal address for grievance redressal',
-        explanation: hasEmailAndPhone
-          ? 'Multi-channel consumer care contact details verified (phone and email detected).'
-          : 'Partial consumer contact information located; full postal & digital channel verification recommended.',
-        evidenceSnippet: care.rawSnippet,
-        evidenceBox: care.boundingBox,
-      });
-    } else {
-      results.push({
-        ruleId: 'LM-RULE-005',
-        ruleName: 'Consumer Care Contact Details',
-        sectionReference: 'Rule 6(1)(n) & Rule 6(2)',
-        severity: 'HIGH',
-        status: 'POTENTIAL_NON_COMPLIANCE',
-        confidence: 0.93,
-        detectedValue: null,
-        expectedRequirement: 'Telephone number, email address, and postal address for grievance redressal',
-        explanation: 'No mandatory consumer care email or telephone number detected on the scanned panel.',
-      });
-    }
-
-    // Rule 6: Unit Sale Price
-    const usp = declarations.unit_sale_price;
-    if (usp && usp.detectedValue) {
-      results.push({
-        ruleId: 'LM-RULE-006',
-        ruleName: 'Unit Sale Price (USP)',
-        sectionReference: 'Rule 6(11)',
-        severity: 'MEDIUM',
-        status: 'COMPLIANT',
-        confidence: usp.confidence,
-        detectedValue: usp.detectedValue,
-        expectedRequirement: 'Unit sale price declared per g / ml / kg / L',
-        explanation: `Unit sale price properly declared: "${usp.detectedValue}".`,
-        evidenceSnippet: usp.rawSnippet,
-        evidenceBox: usp.boundingBox,
-      });
-    } else {
-      results.push({
-        ruleId: 'LM-RULE-006',
-        ruleName: 'Unit Sale Price (USP)',
-        sectionReference: 'Rule 6(11)',
-        severity: 'MEDIUM',
-        status: 'MANUAL_REVIEW_RECOMMENDED',
-        confidence: 0.75,
-        detectedValue: null,
-        expectedRequirement: 'Unit sale price declared per g / ml / kg / L where applicable',
-        explanation: 'Unit sale price declaration not identified. Required for packages under amended Rule 6(11).',
-      });
-    }
-
-    // Rule 7: Font size / Readability
-    results.push({
-      ruleId: 'LM-RULE-007',
-      ruleName: 'Minimum Character Height & Font Size',
-      sectionReference: 'Rule 7 & Rule 8',
-      severity: 'HIGH',
-      status: fontAnalysis.status,
-      confidence: fontAnalysis.confidence,
-      detectedValue: `${fontAnalysis.estimatedCharHeightMm} mm (estimated)`,
-      expectedRequirement: `Minimum ${fontAnalysis.requiredMinimumMm} mm based on net quantity`,
-      explanation: fontAnalysis.explanation,
-    });
-
-    return results;
+  private static createFinding(result: RuleEvaluationResult, decType?: DeclarationType): Finding {
+    return {
+      id: `fnd-${result.ruleId.toLowerCase()}-${Date.now().toString(36)}`,
+      ruleId: result.ruleId,
+      ruleVersion: result.ruleVersion,
+      declarationType: decType,
+      severity: result.severity,
+      status: result.status,
+      title: result.ruleName,
+      explanation: result.explanation,
+      confidence: result.confidence,
+      evidenceSnippet: result.evidenceSnippet,
+      evidenceRegions: result.evidenceRegions || (result.evidenceBox ? [result.evidenceBox] : []),
+      officialSource: result.officialSource || 'Legal Metrology (Packaged Commodities) Rules, 2011',
+    };
   }
 
   public static analyzeScan(
@@ -231,7 +443,8 @@ export class ComplianceEvaluator {
     ocrRegions?: OCRRegion[],
     ocrProvider?: string,
     imageQuality?: ImageQualityMetrics,
-    imageDimensions?: { width: number; height: number }
+    imageDimensions?: { width: number; height: number },
+    options: EvaluationOptions = {}
   ): FullScanAnalysis {
     // 1. Extract Declarations with OCR Bounding Boxes
     const declarations = DeclarationExtractor.extract(rawOcrText, ocrRegions);
@@ -247,24 +460,44 @@ export class ComplianceEvaluator {
     };
     const fontAnalysis = FontAnalyzer.analyze(fontParams);
 
-    // 3. Evaluate Rules
-    const ruleResults = this.evaluateDeclarations(declarations, fontAnalysis);
+    // 3. Evaluate Rules against Applicability Context with full OCR quality options
+    const evalOptions: EvaluationOptions = {
+      ...options,
+      imageQuality,
+      rawOcrText,
+      ocrRegions,
+    };
+    const { ruleResults, findings } = this.evaluateDeclarations(declarations, fontAnalysis, evalOptions);
 
-    // 4. Calculate Scores
+    // 4. Calculate Compliance Screening Score & AI Confidence
     let compliantCount = 0;
     let flaggedCount = 0;
     let reviewCount = 0;
+    let notApplicableCount = 0;
+
+    let totalAiConfSum = 0;
+    let aiConfCount = 0;
 
     for (const res of ruleResults) {
       if (res.status === 'COMPLIANT') compliantCount++;
       else if (res.status === 'POTENTIAL_NON_COMPLIANCE') flaggedCount++;
-      else reviewCount++;
+      else if (res.status === 'MANUAL_REVIEW_RECOMMENDED') reviewCount++;
+      else if (res.status === 'NOT_APPLICABLE') notApplicableCount++;
+
+      if (res.status !== 'NOT_APPLICABLE') {
+        totalAiConfSum += res.confidence;
+        aiConfCount++;
+      }
     }
 
-    const total = ruleResults.length;
+    const applicableTotal = ruleResults.length - notApplicableCount;
+    const total = applicableTotal > 0 ? applicableTotal : 1;
+
     let score = Math.round(((compliantCount + reviewCount * 0.5) / total) * 100);
     if (flaggedCount >= 2 && score > 65) score = 65;
     if (flaggedCount >= 3 && score > 45) score = 45;
+
+    const aiConfidence = aiConfCount > 0 ? Math.round((totalAiConfSum / aiConfCount) * 100) : 92;
 
     let overallStatus: RuleStatus = 'COMPLIANT';
     if (flaggedCount > 0) {
@@ -276,11 +509,13 @@ export class ComplianceEvaluator {
     const summary: ComplianceSummary = {
       overallStatus,
       score,
-      totalRulesEvaluated: total,
+      aiConfidence,
+      totalRulesEvaluated: ruleResults.length,
       compliantCount,
       flaggedCount,
       reviewCount,
-      ruleSetVersion: CURRENT_RULESET_VERSION,
+      notApplicableCount,
+      ruleSetVersion: options.ruleSetVersion || CURRENT_RULESET_VERSION,
       evaluatedAt: new Date().toISOString(),
       disclaimer:
         'AI screening assistance only. Not a formal judicial or enforcement order under the Legal Metrology Act, 2009. Official action is subject to physical verification by authorized Legal Metrology Officers.',
@@ -292,6 +527,7 @@ export class ComplianceEvaluator {
     return {
       declarations,
       ruleResults,
+      findings,
       fontAnalysis,
       summary,
       ocrText: rawOcrText,
@@ -299,6 +535,7 @@ export class ComplianceEvaluator {
       ocrRegions,
       imageQuality,
       imageDimensions,
+      imageIntegrity: options.imageIntegrity,
       fingerprint: {
         brand: brandMatch ? brandMatch[0] : undefined,
         productName: prodMatch ? prodMatch[0] : undefined,

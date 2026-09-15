@@ -7,15 +7,31 @@ import { Search, Eye, ArrowRight } from 'lucide-react';
 export const GovtComplaints: React.FC = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  const loadQueue = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch('/api/complaints');
+      if (res.ok) {
+        const data = await res.json();
+        setComplaints(data);
+      } else {
+        setError('Failed to fetch grievance queue from server.');
+      }
+    } catch (err) {
+      console.error('Failed to load complaints:', err);
+      setError('Network error connecting to Legal Metrology API.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetch('/api/complaints')
-      .then((res) => res.json())
-      .then((data) => setComplaints(data))
-      .catch((err) => console.error('Failed to load complaints:', err))
-      .finally(() => setLoading(false));
+    loadQueue();
   }, []);
 
   const filtered = complaints.filter((c) => {
@@ -81,7 +97,17 @@ export const GovtComplaints: React.FC = () => {
 
       {/* Clean Dockets List */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden divide-y divide-slate-100">
-        {loading ? (
+        {error ? (
+          <div className="p-8 text-center text-xs text-rose-800 bg-rose-50 space-y-3">
+            <p className="font-bold">{error}</p>
+            <button
+              onClick={loadQueue}
+              className="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-xs transition"
+            >
+              Retry Loading Queue
+            </button>
+          </div>
+        ) : loading ? (
           <div className="p-8 text-center text-slate-400 text-xs">Loading queue...</div>
         ) : filtered.length === 0 ? (
           <div className="p-8 text-center text-slate-400 text-xs">No cases match filter.</div>

@@ -72,6 +72,7 @@ export function initDatabase() {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       product_id TEXT,
+      parent_scan_id TEXT,
       image_path TEXT NOT NULL,
       original_file_name TEXT,
       status TEXT NOT NULL,
@@ -81,8 +82,72 @@ export function initDatabase() {
       ocr_confidence REAL NOT NULL,
       font_analysis_json TEXT NOT NULL,
       summary_json TEXT NOT NULL,
+      image_quality_json TEXT,
       brand_detected TEXT,
       product_name_detected TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS scan_images (
+      id TEXT PRIMARY KEY,
+      scan_id TEXT NOT NULL,
+      original_file_name TEXT NOT NULL,
+      storage_path TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      sha256_hash TEXT,
+      width INTEGER NOT NULL,
+      height INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS ocr_regions (
+      id TEXT PRIMARY KEY,
+      scan_id TEXT NOT NULL,
+      text TEXT NOT NULL,
+      confidence REAL NOT NULL,
+      x REAL NOT NULL,
+      y REAL NOT NULL,
+      width REAL NOT NULL,
+      height REAL NOT NULL,
+      polygon_json TEXT,
+      engine TEXT NOT NULL DEFAULT 'PyTorch EasyOCR Neural Engine (v1.7)'
+    );
+
+    CREATE TABLE IF NOT EXISTS evidence (
+      id TEXT PRIMARY KEY,
+      scan_id TEXT NOT NULL,
+      image_id TEXT,
+      rule_id TEXT NOT NULL,
+      declaration_type TEXT,
+      sha256_hash TEXT NOT NULL,
+      ocr_region_ids_json TEXT,
+      bounding_boxes_json TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'INFO',
+      read INTEGER NOT NULL DEFAULT 0,
+      entity_type TEXT,
+      entity_id TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS rule_versions (
+      id TEXT PRIMARY KEY,
+      rule_id TEXT NOT NULL,
+      version TEXT NOT NULL,
+      name TEXT NOT NULL,
+      section_reference TEXT NOT NULL,
+      jurisdiction TEXT NOT NULL DEFAULT 'CENTRAL',
+      status TEXT NOT NULL DEFAULT 'ACTIVE',
+      effective_from TEXT NOT NULL,
+      effective_until TEXT,
+      source_metadata_json TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
 
@@ -175,4 +240,29 @@ export function initDatabase() {
       timestamp TEXT NOT NULL
     );
   `);
+
+  try { sqlite.exec("ALTER TABLE scans ADD COLUMN parent_scan_id TEXT;"); } catch {}
+  try { sqlite.exec("ALTER TABLE scans ADD COLUMN sha256_hash TEXT;"); } catch {}
+  try { sqlite.exec("ALTER TABLE scans ADD COLUMN ai_confidence INTEGER DEFAULT 92;"); } catch {}
+  try { sqlite.exec("ALTER TABLE scans ADD COLUMN ocr_provider TEXT DEFAULT 'PyTorch EasyOCR Neural Engine (v1.7)';"); } catch {}
+  try { sqlite.exec("ALTER TABLE scans ADD COLUMN ocr_regions_json TEXT;"); } catch {}
+  try { sqlite.exec("ALTER TABLE scans ADD COLUMN image_quality_json TEXT;"); } catch {}
+  try { sqlite.exec("ALTER TABLE scans ADD COLUMN image_width INTEGER;"); } catch {}
+  try { sqlite.exec("ALTER TABLE scans ADD COLUMN image_height INTEGER;"); } catch {}
+  try { sqlite.exec("ALTER TABLE scans ADD COLUMN findings_json TEXT;"); } catch {}
+
+  try { sqlite.exec("ALTER TABLE declarations ADD COLUMN raw_text TEXT;"); } catch {}
+  try { sqlite.exec("ALTER TABLE declarations ADD COLUMN normalized_json TEXT;"); } catch {}
+  try { sqlite.exec("ALTER TABLE declarations ADD COLUMN ocr_confidence REAL;"); } catch {}
+  try { sqlite.exec("ALTER TABLE declarations ADD COLUMN extraction_confidence REAL;"); } catch {}
+  try { sqlite.exec("ALTER TABLE declarations ADD COLUMN bounding_box_json TEXT;"); } catch {}
+  try { sqlite.exec("ALTER TABLE declarations ADD COLUMN evidence_regions_json TEXT;"); } catch {}
+
+  try { sqlite.exec("ALTER TABLE rule_evaluations ADD COLUMN rule_version TEXT DEFAULT '2026.1';"); } catch {}
+  try { sqlite.exec("ALTER TABLE rule_evaluations ADD COLUMN evidence_box_json TEXT;"); } catch {}
+  try { sqlite.exec("ALTER TABLE rule_evaluations ADD COLUMN evidence_regions_json TEXT;"); } catch {}
+  try { sqlite.exec("ALTER TABLE rule_evaluations ADD COLUMN official_source TEXT;"); } catch {}
+
+  try { sqlite.exec("ALTER TABLE ocr_regions ADD COLUMN polygon_json TEXT;"); } catch {}
+  try { sqlite.exec("ALTER TABLE ocr_regions ADD COLUMN engine TEXT DEFAULT 'PyTorch EasyOCR Neural Engine (v1.7)';"); } catch {}
 }

@@ -21,23 +21,28 @@ export interface ReportData {
   scan: {
     scanId: string;
     overallScore: number;
+    aiConfidence?: number;
     overallStatus: string;
     ruleSetVersion: string;
     ocrConfidence: number;
+    sha256Hash?: string;
   };
   declarations: Array<{
     label: string;
     detectedValue: string | null;
     confidence: number;
+    rawSnippet?: string;
   }>;
   ruleResults: Array<{
     ruleName: string;
     sectionReference: string;
     status: string;
+    severity?: string;
     confidence: number;
     detectedValue: string | null;
     expectedRequirement: string;
     explanation: string;
+    officialSource?: string;
   }>;
   fontAnalysis: {
     estimatedCharHeightMm: number;
@@ -99,55 +104,60 @@ export class ReportService {
         .font('Helvetica')
         .text(`Report Reference ID: ${data.reportId}`, 40, 85)
         .text(`Generated On: ${data.generatedDate}`, 40, 98)
-        .text(`Rule Set Version: Legal Metrology (PC) Rules 2011 [v${data.scan.ruleSetVersion}]`, 40, 111);
+        .text(`Rule Set Version: Legal Metrology (PC) Rules 2011 [v${data.scan.ruleSetVersion}]`, 40, 111)
+        .text(`SHA-256 Evidence Hash: ${data.scan.sha256Hash ? data.scan.sha256Hash.substring(0, 32) + '...' : 'N/A'}`, 40, 124);
 
       const statusColor = data.scan.overallStatus === 'COMPLIANT' ? '#16a34a' : '#ea580c';
       doc
-        .rect(380, 85, 175, 40)
+        .rect(370, 85, 185, 45)
         .fillAndStroke('#f8fafc', statusColor);
 
       doc
         .fillColor(statusColor)
-        .fontSize(10)
+        .fontSize(9)
         .font('Helvetica-Bold')
-        .text('SCREENING STATUS:', 390, 92)
+        .text('SCREENING VERDICT:', 378, 92)
         .fontSize(11)
-        .text(data.scan.overallStatus.replace(/_/g, ' '), 390, 107);
+        .text(data.scan.overallStatus.replace(/_/g, ' '), 378, 105)
+        .fontSize(8.5)
+        .fillColor('#475569')
+        .font('Helvetica')
+        .text(`Score: ${data.scan.overallScore}/100 | AI Conf: ${data.scan.aiConfidence || 92}%`, 378, 120);
 
       doc.moveDown(4);
 
       // Section: Product & Manufacturer
       doc
-        .rect(40, 140, 515, 20)
+        .rect(40, 145, 515, 20)
         .fill('#f1f5f9');
       doc
         .fillColor('#0f172a')
         .fontSize(10)
         .font('Helvetica-Bold')
-        .text('1. COMMODITY & MANUFACTURER PROFILE', 45, 145);
+        .text('1. COMMODITY & MANUFACTURER PROFILE', 45, 150);
 
       doc
         .fontSize(9)
         .font('Helvetica')
         .fillColor('#1e293b')
-        .text(`Product Name: ${data.product.name} (${data.product.brand})`, 45, 170)
-        .text(`Category: ${data.product.category}`, 45, 184)
-        .text(`Net Quantity: ${data.product.netQuantity || 'N/A'} | MRP: ${data.product.mrp || 'N/A'}`, 45, 198)
-        .text(`Manufacturer/Packer: ${data.company.name}`, 300, 170)
-        .text(`Registration No: ${data.company.registrationNo}`, 300, 184)
-        .text(`Risk Index: ${data.company.riskScore}/100`, 300, 198);
+        .text(`Product Name: ${data.product.name} (${data.product.brand})`, 45, 172)
+        .text(`Category: ${data.product.category}`, 45, 186)
+        .text(`Net Quantity: ${data.product.netQuantity || 'N/A'} | MRP: ${data.product.mrp || 'N/A'}`, 45, 200)
+        .text(`Manufacturer/Packer: ${data.company.name}`, 300, 172)
+        .text(`Registration No: ${data.company.registrationNo}`, 300, 186)
+        .text(`Risk Index: ${data.company.riskScore}/100`, 300, 200);
 
       // Section: Mandatory Declarations
       doc
-        .rect(40, 225, 515, 20)
+        .rect(40, 222, 515, 20)
         .fill('#f1f5f9');
       doc
         .fillColor('#0f172a')
         .fontSize(10)
         .font('Helvetica-Bold')
-        .text('2. EXTRACTED MANDATORY DECLARATIONS (RULE 6)', 45, 230);
+        .text('2. EXTRACTED MANDATORY DECLARATIONS (RULE 6)', 45, 227);
 
-      let yPos = 252;
+      let yPos = 248;
       for (const dec of data.declarations) {
         doc
           .fontSize(9)

@@ -5,6 +5,7 @@ import { Navbar } from './components/Navbar';
 import { ConsumerScan } from './pages/consumer/ConsumerScan';
 import { ConsumerComplaints } from './pages/consumer/ConsumerComplaints';
 import { CompanyDashboard } from './pages/company/CompanyDashboard';
+import { CompanyProducts } from './pages/company/CompanyProducts';
 import { CompanyComplaints } from './pages/company/CompanyComplaints';
 import { CompanySelfCheck } from './pages/company/CompanySelfCheck';
 import { GovtOverview } from './pages/government/GovtOverview';
@@ -12,6 +13,7 @@ import { GovtComplaints } from './pages/government/GovtComplaints';
 import { GovtCaseReview } from './pages/government/GovtCaseReview';
 import { GovtInspections } from './pages/government/GovtInspections';
 import { AdminRules } from './pages/admin/AdminRules';
+import { AdminUsers } from './pages/admin/AdminUsers';
 import { AdminAuditLogs } from './pages/admin/AdminAuditLogs';
 
 const RoleRedirect: React.FC = () => {
@@ -35,8 +37,23 @@ const RoleRedirect: React.FC = () => {
 };
 
 export const AppContent: React.FC = () => {
+  const { isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white font-sans p-6">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-bold font-mono tracking-wider uppercase text-slate-300">
+            Initializing Legal Metrology Session...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-50 font-sans text-slate-900">
       <Navbar />
 
       <main className="flex-1">
@@ -49,6 +66,7 @@ export const AppContent: React.FC = () => {
 
           {/* Company Routes */}
           <Route path="/company" element={<CompanyDashboard />} />
+          <Route path="/company/products" element={<CompanyProducts />} />
           <Route path="/company/complaints" element={<CompanyComplaints />} />
           <Route path="/company/self-check" element={<CompanySelfCheck />} />
 
@@ -60,6 +78,7 @@ export const AppContent: React.FC = () => {
 
           {/* Administration Routes */}
           <Route path="/admin" element={<AdminRules />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
 
           {/* Catch-all */}

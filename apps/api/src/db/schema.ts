@@ -49,10 +49,13 @@ export const scans = sqliteTable('scans', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull(),
   productId: text('product_id'),
+  parentScanId: text('parent_scan_id'),
   imagePath: text('image_path').notNull(),
   originalFileName: text('original_file_name'),
+  sha256Hash: text('sha256_hash'),
   status: text('status').notNull(), // 'COMPLIANT' | 'POTENTIAL_NON_COMPLIANCE' | 'MANUAL_REVIEW_RECOMMENDED'
   overallScore: integer('overall_score').notNull(),
+  aiConfidence: integer('ai_confidence').default(92),
   ruleSetVersion: text('rule_set_version').notNull(),
   ocrText: text('ocr_text').notNull(),
   ocrConfidence: real('ocr_confidence').notNull(),
@@ -63,6 +66,7 @@ export const scans = sqliteTable('scans', {
   imageHeight: integer('image_height'),
   fontAnalysisJson: text('font_analysis_json').notNull(),
   summaryJson: text('summary_json').notNull(),
+  findingsJson: text('findings_json'),
   brandDetected: text('brand_detected'),
   productNameDetected: text('product_name_detected'),
   createdAt: text('created_at').notNull(),
@@ -74,6 +78,7 @@ export const scanImages = sqliteTable('scan_images', {
   originalFileName: text('original_file_name').notNull(),
   storagePath: text('storage_path').notNull(),
   mimeType: text('mime_type').notNull(),
+  sha256Hash: text('sha256_hash'),
   width: integer('width').notNull(),
   height: integer('height').notNull(),
   createdAt: text('created_at').notNull(),
@@ -92,32 +97,66 @@ export const ocrRegions = sqliteTable('ocr_regions', {
   engine: text('engine').notNull().default('PyTorch EasyOCR Neural Engine (v1.7)'),
 });
 
+export const ruleVersions = sqliteTable('rule_versions', {
+  id: text('id').primaryKey(),
+  ruleId: text('rule_id').notNull(),
+  version: text('version').notNull(),
+  name: text('name').notNull(),
+  sectionReference: text('section_reference').notNull(),
+  jurisdiction: text('jurisdiction').notNull().default('CENTRAL'),
+  status: text('status').notNull().default('ACTIVE'), // 'DRAFT' | 'REVIEW' | 'ACTIVE' | 'RETIRED'
+  effectiveFrom: text('effective_from').notNull(),
+  effectiveUntil: text('effective_until'),
+  sourceMetadataJson: text('source_metadata_json').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
 export const declarations = sqliteTable('declarations', {
   id: text('id').primaryKey(),
   scanId: text('scan_id').notNull(),
   declarationType: text('declaration_type').notNull(),
   label: text('label').notNull(),
   detectedValue: text('detected_value'),
+  rawText: text('raw_text'),
+  normalizedJson: text('normalized_json'),
   confidence: real('confidence').notNull(),
+  ocrConfidence: real('ocr_confidence'),
+  extractionConfidence: real('extraction_confidence'),
   rawSnippet: text('raw_snippet'),
   notes: text('notes'),
   boundingBoxJson: text('bounding_box_json'),
+  evidenceRegionsJson: text('evidence_regions_json'),
 });
 
 export const ruleEvaluations = sqliteTable('rule_evaluations', {
   id: text('id').primaryKey(),
   scanId: text('scan_id').notNull(),
   ruleId: text('rule_id').notNull(),
+  ruleVersion: text('rule_version').notNull().default('2026.1'),
   ruleName: text('rule_name').notNull(),
   sectionReference: text('section_reference').notNull(),
   severity: text('severity').notNull(),
-  status: text('status').notNull(),
+  status: text('status').notNull(), // 'COMPLIANT' | 'POTENTIAL_NON_COMPLIANCE' | 'MANUAL_REVIEW_RECOMMENDED' | 'NOT_APPLICABLE'
   confidence: real('confidence').notNull(),
   detectedValue: text('detected_value'),
   expectedRequirement: text('expected_requirement').notNull(),
   explanation: text('explanation').notNull(),
   evidenceSnippet: text('evidence_snippet'),
   evidenceBoxJson: text('evidence_box_json'),
+  evidenceRegionsJson: text('evidence_regions_json'),
+  officialSource: text('official_source'),
+});
+
+export const evidence = sqliteTable('evidence', {
+  id: text('id').primaryKey(),
+  scanId: text('scan_id').notNull(),
+  imageId: text('image_id'),
+  ruleId: text('rule_id').notNull(),
+  declarationType: text('declaration_type'),
+  sha256Hash: text('sha256_hash').notNull(),
+  ocrRegionIdsJson: text('ocr_region_ids_json'),
+  boundingBoxesJson: text('bounding_boxes_json').notNull(),
+  createdAt: text('created_at').notNull(),
 });
 
 export const complaints = sqliteTable('complaints', {
@@ -169,6 +208,18 @@ export const inspections = sqliteTable('inspections', {
   findingsSummary: text('findings_summary'),
   enforcementAction: text('enforcement_action'),
   reportPdfPath: text('report_pdf_path'),
+  createdAt: text('created_at').notNull(),
+});
+
+export const notifications = sqliteTable('notifications', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  title: text('title').notNull(),
+  message: text('message').notNull(),
+  type: text('type').notNull().default('INFO'), // 'INFO' | 'WARNING' | 'ACTION_REQUIRED' | 'VIOLATION'
+  read: integer('read').notNull().default(0),
+  entityType: text('entity_type'),
+  entityId: text('entity_id'),
   createdAt: text('created_at').notNull(),
 });
 

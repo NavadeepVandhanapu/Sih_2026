@@ -18,6 +18,7 @@ export const GovtInspections: React.FC = () => {
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   // New Inspection Modal state
   const [modalOpen, setModalOpen] = useState<boolean>(false);
@@ -35,14 +36,20 @@ export const GovtInspections: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [inspRes, compRes] = await Promise.all([
         fetch('/api/inspections'),
         fetch('/api/companies'),
       ]);
       if (inspRes.ok) setInspections(await inspRes.json());
       if (compRes.ok) setCompanies(await compRes.json());
+
+      if (!inspRes.ok && !compRes.ok) {
+        setError('Failed to load inspection schedule from server.');
+      }
     } catch (err) {
       console.error('Failed to load inspections:', err);
+      setError('Network error connecting to Legal Metrology API.');
     } finally {
       setLoading(false);
     }
@@ -101,7 +108,17 @@ export const GovtInspections: React.FC = () => {
         </button>
       </div>
 
-      {loading ? (
+      {error ? (
+        <div className="bg-rose-50 border border-rose-200 rounded-3xl p-8 text-center space-y-3">
+          <p className="text-xs font-bold text-rose-900">{error}</p>
+          <button
+            onClick={loadData}
+            className="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-xs transition"
+          >
+            Retry Loading Inspections
+          </button>
+        </div>
+      ) : loading ? (
         <div className="p-12 text-center text-slate-400">Loading inspections...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
