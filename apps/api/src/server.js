@@ -227,6 +227,28 @@ Batch: NV-9901
 Consumer Care: Phone: 080-23456789
 `.trim();
             }
+            else if (productId === 'prod-defect-biscuits' || imagePath.includes('Defect_Image')) {
+                // Defective / tampered label — MRP and Date are obliterated
+                rawOcrText = `
+BISCUITS NET WEIGHT 250 g
+Marketed By: BRITANNIA INDUSTRIES LTD., 5/1A, Hungerford Street, Kolkata - 700017
+Consumer Care Cell: Ph: (Toll Free) 1-800-4254449 / feedback@britindia.com
+[OBLITERATED / BLACKED OUT MRP ZONE]
+[OBLITERATED DATE OF PACKAGING ZONE]
+`.trim();
+            }
+            else if (productId === 'prod-original-biscuits' || imagePath.includes('Original_Image')) {
+                // Original / fully compliant label
+                rawOcrText = `
+BISCUITS NET WEIGHT 250 g
+MRP Rs. (INCL. OF ALL TAXES) 70.00
+Rs. 0.28 Per g
+PKD. 02/11/23 | USE BY. 01/05/24 | LOT No. A11239D
+Marketed By: BRITANNIA INDUSTRIES LTD., 5/1A, Hungerford Street, Kolkata - 700017
+Consumer Care Cell: Ph: (Toll Free) 1-800-4254449 / feedback@britindia.com
+Made in India
+`.trim();
+            }
             else {
                 // General packaged commodity fallback OCR text
                 rawOcrText = `
@@ -684,14 +706,14 @@ Made in India
             ruleName: val.name,
             count: val.count,
         }));
-        // Violations by Category
-        const violationsByCategory = [
-            { category: 'Food & Snacks', count: 48, fill: '#3b82f6' },
-            { category: 'Cosmetics & Personal Care', count: 26, fill: '#10b981' },
-            { category: 'Household & Detergents', count: 21, fill: '#f59e0b' },
-            { category: 'Beverages', count: 14, fill: '#8b5cf6' },
-            { category: 'Staples & Grains', count: 8, fill: '#06b6d4' },
-        ];
+            // Violations by Category (Food & FMCG Commodities)
+            const violationsByCategory = [
+                { category: 'Snacks & Confectionery', count: 48, fill: '#3b82f6' },
+                { category: 'Dairy & Milk Products', count: 26, fill: '#10b981' },
+                { category: 'Edible Oils & Ghee', count: 21, fill: '#f59e0b' },
+                { category: 'Beverages & Juices', count: 14, fill: '#8b5cf6' },
+                { category: 'Staples, Grains & Pulses', count: 8, fill: '#06b6d4' },
+            ];
         // Complaint trend (monthly timeline)
         const complaintTrends = [
             { month: 'Mar 26', total: 18, resolved: 14, escalated: 4 },

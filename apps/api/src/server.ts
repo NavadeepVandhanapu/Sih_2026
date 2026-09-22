@@ -112,6 +112,69 @@ server.post('/api/auth/login', async (request, reply) => {
   });
 });
 
+server.post('/api/auth/register', async (request, reply) => {
+  const { name, email, password, role, phone, companyName } = request.body as {
+    name?: string;
+    email?: string;
+    password?: string;
+    role?: 'CONSUMER' | 'COMPANY' | 'GOVERNMENT_OFFICER' | 'ADMIN';
+    phone?: string;
+    companyName?: string;
+  };
+
+  if (!name || !email) {
+    return reply.status(400).send({ error: 'Name and email are required' });
+  }
+
+  const existing = db.select().from(users).where(eq(users.email, email.toLowerCase().trim())).get();
+  if (existing) {
+    return reply.status(400).send({ error: 'An account with this email already exists' });
+  }
+
+  const assignedRole = role || 'CONSUMER';
+  const passwordHash = await bcrypt.hash(password || 'demo123', 8);
+  const userId = `usr-${Date.now()}`;
+  let companyId: string | undefined = undefined;
+
+  if (assignedRole === 'COMPANY') {
+    const compName = companyName || `${name}'s Enterprises`;
+    companyId = `comp-${Date.now()}`;
+    db.insert(companies).values({
+      id: companyId,
+      name: compName,
+      registrationNo: `LM/REG/${Date.now().toString().slice(-5)}`,
+      category: 'General FMCG & Packaged Goods',
+      riskScore: 25,
+      riskLevel: 'LOW',
+      address: 'Registered Office',
+      state: 'New Delhi',
+      complianceRate: 100,
+      activeComplaintsCount: 0,
+      totalProductsCount: 1,
+      createdAt: new Date().toISOString(),
+    }).run();
+  }
+
+  db.insert(users).values({
+    id: userId,
+    email: email.toLowerCase().trim(),
+    passwordHash,
+    name,
+    role: assignedRole,
+    companyId,
+    phone: phone || '+91 98000 00000',
+    designation: assignedRole === 'COMPANY' ? 'Compliance Lead' : assignedRole === 'GOVERNMENT_OFFICER' ? 'Legal Metrology Officer' : 'Citizen Consumer',
+    createdAt: new Date().toISOString(),
+  }).run();
+
+  const createdUser = db.select().from(users).where(eq(users.id, userId)).get();
+
+  return reply.status(201).send({
+    user: createdUser,
+    token: `demo-token-${userId}-${Date.now()}`,
+  });
+});
+
 server.get('/api/auth/users', async (_request, reply) => {
   const allUsers = db
     .select({
@@ -196,6 +259,7 @@ server.post('/api/scans/analyze', async (request, reply) => {
         if (fieldName === 'userId') userId = val;
         if (fieldName === 'productId') productId = val;
         if (fieldName === 'ocrText') ocrOverride = val;
+        if (fieldName === 'imageUrl') imagePath = val;
         if (fieldName === 'packageHeightMm') packageHeightMm = parseFloat(val);
         if (fieldName === 'packageWidthMm') packageWidthMm = parseFloat(val);
       }
@@ -223,9 +287,29 @@ server.post('/api/scans/analyze', async (request, reply) => {
   // If a known product was selected, use or calibrate sample text
   let targetProduct = productId ? db.select().from(products).where(eq(products.id, productId)).get() : null;
 
-  let rawOcrText = ocrOverride;
-  if (!rawOcrText) {
-    if (productId === 'prod-apex-biscuits' || imagePath.includes('apex')) {
+  let rawOcrText: string = ocrOverride || '';
+  if (!ocrOverride) {
+    if (imagePath.includes('Defect') || productId === 'prod-defect-biscuits') {
+      rawOcrText = `
+BISCUITS NET WEIGHT 250 g
+Marketed By: BRITANNIA INDUSTRIES LTD., 5/1A HUNGERFORD STREET, KOLKATA-700017
+Consumer Care Cell: Ph: (Toll Free) 1-800-4254449 / 1-800-30004530 @ Britannia Industries Ltd., Prestige Shantiniketan, Bangalore-560048. Email: feedback@britindia.com
+[ALERT: MRP and Date declaration area is obscured / blacked out]
+Made in India
+`.trim();
+    } else if (imagePath.includes('Original') || productId === 'prod-original-biscuits') {
+      rawOcrText = `
+BISCUITS NET WEIGHT 250 g
+MRP ₹ (INCL. OF ALL TAXES) 70.00
+Rs. 0.28 Per g
+PKD. 02/11/23
+USE BY. 01/05/24
+LOT No. A11239D
+Marketed By: BRITANNIA INDUSTRIES LTD., 5/1A HUNGERFORD STREET, KOLKATA-700017
+Consumer Care Cell: Ph: (Toll Free) 1-800-4254449 / 1-800-30004530 @ Britannia Industries Ltd., Prestige Shantiniketan, Bangalore-560048. Email: feedback@britindia.com
+Made in India
+`.trim();
+    } else if (productId === 'prod-apex-biscuits' || imagePath.includes('apex')) {
       rawOcrText = `
 Apex Delight Cream Biscuits Vanilla
 Manufactured by: Apex Foods Pvt. Ltd., Plot 42, Industrial Area, Sector 5, Haridwar, Uttarakhand - 249403
@@ -260,7 +344,6 @@ Batch: NV-9901
 Consumer Care: Phone: 080-23456789
 `.trim();
     } else {
-      // General packaged commodity fallback OCR text
       rawOcrText = `
 PRE-PACKED COMMODITY
 Brand: Apex Delight
@@ -835,13 +918,13 @@ server.get('/api/government/analytics', async (_request, reply) => {
     count: val.count,
   }));
 
-  // Violations by Category
+  // Violations by Category (Food & FMCG Commodities)
   const violationsByCategory = [
-    { category: 'Food & Snacks', count: 48, fill: '#3b82f6' },
-    { category: 'Cosmetics & Personal Care', count: 26, fill: '#10b981' },
-    { category: 'Household & Detergents', count: 21, fill: '#f59e0b' },
-    { category: 'Beverages', count: 14, fill: '#8b5cf6' },
-    { category: 'Staples & Grains', count: 8, fill: '#06b6d4' },
+    { category: 'Snacks & Confectionery', count: 48, fill: '#3b82f6' },
+    { category: 'Dairy & Milk Products', count: 26, fill: '#10b981' },
+    { category: 'Edible Oils & Ghee', count: 21, fill: '#f59e0b' },
+    { category: 'Beverages & Juices', count: 14, fill: '#8b5cf6' },
+    { category: 'Staples, Grains & Pulses', count: 8, fill: '#06b6d4' },
   ];
 
   // Complaint trend (monthly timeline)

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { ScanLine, FileText, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-  const { user, demoUsers, switchUser } = useAuth();
+  const { user, demoUsers, switchUser, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -34,7 +34,7 @@ export const Navbar: React.FC = () => {
             <ScanLine className="w-4 h-4" />
           </div>
           <span className="font-display font-extrabold text-base tracking-tight text-slate-900">
-            Metrologix
+            VidhiTrace
           </span>
           <span className="text-[10px] font-bold text-slate-400 font-mono">SIH26034</span>
         </Link>
@@ -75,6 +75,17 @@ export const Navbar: React.FC = () => {
 
         {/* Minimal Context Nav */}
         <div className="hidden sm:flex items-center gap-1 text-xs">
+          <Link
+            to="/"
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
+              location.pathname === '/'
+                ? 'text-blue-600 bg-blue-50 font-bold'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            Home
+          </Link>
+
           {user?.role === 'CONSUMER' && (
             <>
               <Link to="/consumer" className={navLinkClass('/consumer')}>
@@ -110,6 +121,53 @@ export const Navbar: React.FC = () => {
                 Inspections
               </Link>
             </>
+          )}
+          {user?.role === 'ADMIN' && (
+            <>
+              <Link to="/admin" className={navLinkClass('/admin')}>
+                Rule Registry
+              </Link>
+              <Link to="/admin/audit-logs" className={navLinkClass('/admin/audit-logs')}>
+                Audit Ledger
+              </Link>
+            </>
+          )}
+        </div>
+
+        {/* Auth Action Buttons */}
+        <div className="flex items-center gap-2">
+          {user ? (
+            <div className="flex items-center gap-2">
+              <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="truncate max-w-[120px]">{user.name.split(' ')[0]}</span>
+              </span>
+              <button
+                onClick={() => {
+                  logout();
+                  navigate('/login');
+                }}
+                className="text-xs text-slate-500 hover:text-slate-900 font-semibold px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+                title="Sign out of current account"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <Link
+                to="/login"
+                className="text-xs font-bold text-slate-700 hover:text-blue-600 px-3 py-1.5 rounded-lg transition"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/signup"
+                className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg shadow-xs transition"
+              >
+                Sign Up
+              </Link>
+            </div>
           )}
         </div>
       </div>

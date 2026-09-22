@@ -14,12 +14,15 @@ import { GovtInspections } from './pages/government/GovtInspections';
 import { AdminRules } from './pages/admin/AdminRules';
 import { AdminAuditLogs } from './pages/admin/AdminAuditLogs';
 
+import { LandingPage } from './pages/LandingPage';
+import { AuthPage } from './pages/AuthPage';
+
 const RoleRedirect: React.FC = () => {
   const { user, isLoading } = useAuth();
   if (isLoading) {
-    return <div className="p-12 text-center text-slate-400">Initializing Metrologix Portal...</div>;
+    return <div className="p-12 text-center text-slate-400">Initializing VidhiTrace Portal...</div>;
   }
-  if (!user) return <Navigate to="/consumer" replace />;
+  if (!user) return <Navigate to="/login" replace />;
 
   switch (user.role) {
     case 'COMPANY':
@@ -41,7 +44,9 @@ export const AppContent: React.FC = () => {
 
       <main className="flex-1">
         <Routes>
-          <Route path="/" element={<RoleRedirect />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<AuthPage initialMode="login" />} />
+          <Route path="/signup" element={<AuthPage initialMode="signup" />} />
 
           {/* Consumer Routes */}
           <Route path="/consumer" element={<ConsumerScan />} />

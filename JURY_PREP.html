@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VidhiTrace SIH26034 — Jury Preparation Guide</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    :root {
+      --blue: #2563eb;
+      --indigo: #4f46e5;
+      --green: #16a34a;
+      --amber: #d97706;
+      --red: #dc2626;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-400: #94a3b8;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--slate-800);
+      background: white;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 32px;
+    }
+
+    /* ── PRINT ── */
+    @media print {
+      body {
+        padding: 20px 24px;
+        font-size: 11.5px;
+      }
+
+      .no-print {
+        display: none;
+      }
+
+      h2 {
+        page-break-before: always;
+      }
+
+      h2:first-of-type {
+        page-break-before: avoid;
+      }
+
+      pre,
+      table {
+        page-break-inside: avoid;
+      }
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: linear-gradient(135deg, #1e293b 0%, #1e3a8a 100%);
+      color: white;
+      border-radius: 16px;
+      padding: 32px 36px;
+      margin-bottom: 32px;
+    }
+
+    .header .badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      letter-spacing: 0.04em;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+
+    .header h1 span {
+      color: #93c5fd;
+    }
+
+    .header p {
+      font-size: 12.5px;
+      color: #cbd5e1;
+      font-weight: 400;
+    }
+
+    /* ── SECTIONS ── */
+    h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--slate-900);
+      margin: 28px 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--slate-100);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--slate-800);
+      margin: 18px 0 8px;
+    }
+
+    /* ── CALLOUT ── */
+    .callout {
+      background: #eff6ff;
+      border-left: 4px solid var(--blue);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin: 14px 0;
+      font-style: italic;
+      color: #1e40af;
+      font-weight: 500;
+    }
+
+    .callout.green {
+      background: #f0fdf4;
+      border-color: var(--green);
+      color: #166534;
+    }
+
+    .callout.amber {
+      background: #fffbeb;
+      border-color: var(--amber);
+      color: #92400e;
+    }
+
+    /* ── CODE BLOCKS ── */
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      border-radius: 10px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      margin: 10px 0 16px;
+      line-height: 1.7;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      background: var(--slate-100);
+      color: var(--indigo);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    pre code {
+      background: none;
+      color: inherit;
+      padding: 0;
+    }
+
+    /* ── TABLES ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 18px;
+      font-size: 12px;
+    }
+
+    th {
+      background: var(--slate-900);
+      color: white;
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.03em;
+    }
+
+    td {
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--slate-100);
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background: var(--slate-50);
+    }
+
+    td:first-child {
+      font-weight: 600;
+      color: var(--slate-700);
+    }
+
+    /* ── QA CARDS ── */
+    .qa-block {
+      border: 1px solid var(--slate-200);
+      border-radius: 10px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .qa-q {
+      background: var(--slate-900);
+      color: white;
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 12.5px;
+    }
+
+    .qa-a {
+      padding: 12px 14px;
+      color: var(--slate-700);
+      line-height: 1.7;
+      background: white;
+    }
+
+    .qa-a strong {
+      color: var(--slate-900);
+    }
+
+    /* ── VERDICT PILLS ── */
+    .pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .pill.green {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .pill.red {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .pill.amber {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    /* ── FLOW DIAGRAM ── */
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0;
+      align-items: center;
+      margin: 14px 0;
+    }
+
+    .flow-step {
+      background: var(--blue);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .flow-arrow {
+      color: var(--slate-400);
+      font-size: 14px;
+      padding: 0 6px;
+    }
+
+    /* ── PORTAL CARDS ── */
+    .portal-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 12px 0;
+    }
+
+    .portal-card {
+      border: 1px solid var(--slate-200);
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .portal-card .portal-icon {
+      font-size: 20px;
+      margin-bottom: 6px;
+    }
+
+    .portal-card h4 {
+      font-size: 12.5px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .portal-card ul {
+      padding-left: 16px;
+      font-size: 11.5px;
+      color: var(--slate-600);
+    }
+
+    .portal-card li {
+      margin-bottom: 2px;
+    }
+
+    /* ── NUMBERS GRID ── */
+    .numbers-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .number-card {
+      background: var(--slate-900);
+      color: white;
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .number-card .num {
+      font-size: 24px;
+      font-weight: 800;
+      color: #93c5fd;
+    }
+
+    .number-card .label {
+      font-size: 10.5px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    /* ── ACE CARD ── */
+    .ace {
+      background: linear-gradient(135deg, #1e3a8a, #4f46e5);
+      color: white;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-top: 24px;
+    }
+
+    .ace h3 {
+      color: #bfdbfe;
+      margin-bottom: 8px;
+    }
+
+    .ace p {
+      font-size: 13px;
+      line-height: 1.7;
+      color: #e0e7ff;
+      font-style: italic;
+    }
+
+    /* ── PRINT BUTTON ── */
+    .print-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--blue);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+      font-family: 'Inter', sans-serif;
+    }
+
+    .print-btn:hover {
+      background: #1d4ed8;
+    }
+  </style>
+</head>
+
+<body>
+
+  <button class="print-btn no-print" onclick="window.print()">🖨️ Save as PDF</button>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="badge">🏆 Smart India Hackathon 2026 · SIH26034</div>
+    <h1>VidhiTrace <span>Jury Prep Guide</span></h1>
+    <p>Ministry of Consumer Affairs, Food &amp; Public Distribution (DoCA) · Legal Metrology (Packaged Commodities)
+      Rules, 2011</p>
+  </div>
+
+  <!-- ELEVATOR PITCH -->
+  <h2>⚡ Elevator Pitch — 30 Seconds</h2>
+  <div class="callout">
+    "VidhiTrace is a three-sided AI compliance platform that lets any Indian citizen scan a packaged product and
+    instantly know if it's legally compliant — detecting missing MRP, obscured dates, wrong font sizes. Manufacturers
+    get a pre-launch simulator to fix issues before products hit shelves. Government officers get a command center to
+    verify violations and issue official notices — all under the Legal Metrology Act, 2009."
+  </div>
+
+  <!-- CORE PIPELINE -->
+  <h2>🔄 Core Pipeline</h2>
+  <div class="flow">
+    <div class="flow-step">SCAN</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">EXTRACT</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">VALIDATE</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">EXPLAIN</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">REPORT</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">RESOLVE</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">ESCALATE</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">ENFORCE</div>
+  </div>
+
+  <!-- ARCHITECTURE -->
+  <h2>🏗️ Architecture</h2>
+  <pre>
+┌──────────────────────────────────────────────────────────────┐
+│              BROWSER — React 19 + Vite (port 5173)           │
+│   Consumer Portal │ Company Portal │ Gov Portal │ Admin      │
+└──────────────────────────┬───────────────────────────────────┘
+                           │ HTTP REST (Vite proxy)
+┌──────────────────────────▼───────────────────────────────────┐
+│         FASTIFY API SERVER — Node.js + TypeScript (3001)     │
+│   Auth │ Scans │ Complaints │ PDF Reports (PDFKit) │ Audit   │
+└────────────────┬─────────────────────────┬───────────────────┘
+                 │                         │
+┌────────────────▼──────┐   ┌─────────────▼──────────────────┐
+│  SQLite via            │   │  @sih/compliance-engine        │
+│  Drizzle ORM           │   │  (Shared monorepo package)     │
+│  (→ PostgreSQL ready)  │   │  Extract → Evaluate → Score    │
+└───────────────────────┘   └────────────────────────────────┘
+
+MONOREPO (npm workspaces):
+  apps/web/          ← React frontend
+  apps/api/          ← Fastify backend
+  packages/
+    compliance-engine/
+      extractor/     ← OCR text → declarations (regex)
+      evaluator/     ← declarations → rule verdicts
+      font/          ← physical font size calibration
+      rules/         ← Legal Metrology Rule definitions v2026.1
+</pre>
+
+  <!-- HOW SCAN WORKS -->
+  <h2>🔍 How a Scan Works — Step by Step</h2>
+  <pre>
+POST /api/scans/analyze  (multipart/form-data)
+  ├─ image file → saved to /uploads/ (UUID filename)
+  ├─ productId  → selects OCR text fixture
+  └─ packageHeightMm + packageWidthMm → font calibration
+
+Step 1: DeclarationExtractor.extract(rawOcrText)
+  Regex patterns → manufacturer, net_quantity, mrp,
+                   mfg_date, consumer_care, unit_sale_price
+
+Step 2: FontAnalyzer.analyze(calibration)
+  estimatedMm = (packageHeightMm / imageHeightPx) × charHeightPx
+  Compare to Rule 7/8 thresholds
+
+Step 3: evaluateDeclarations(declarations, fontAnalysis)
+  Each field → COMPLIANT / POTENTIAL_NON_COMPLIANCE / MANUAL_REVIEW
+
+Step 4: Score Calculation
+  score = (compliant + review×0.5) / total × 100
+  ≥2 flags → capped at 65 | ≥3 flags → capped at 45
+
+Results → SQLite (scans, declarations, ruleEvaluations, auditLogs)
+       → JSON response → React renders compliance report
+</pre>
+
+  <!-- RULES TABLE -->
+  <h2>⚖️ Rules Enforced (v2026.1)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Rule</th>
+        <th>Statutory Ref</th>
+        <th>Checks For</th>
+        <th>Severity</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>LM-RULE-001</td>
+        <td>Rule 6(1)(a)</td>
+        <td>Manufacturer name &amp; full address</td>
+        <td><span class="pill red">HIGH</span></td>
+      </tr>
+      <tr>
+        <td>LM-RULE-002</td>
+        <td>Rule 6(1)(c) + Rule 12</td>
+        <td>Net quantity in standard metric units (g, kg, ml, L)</td>
+        <td><span class="pill red">HIGH</span></td>
+      </tr>
+      <tr>
+        <td>LM-RULE-003</td>
+        <td>Rule 6(1)(e)</td>
+        <td>MRP "inclusive of all taxes" clause</td>
+        <td><span class="pill red">HIGH</span></td>
+      </tr>
+      <tr>
+        <td>LM-RULE-004</td>
+        <td>Rule 6(1)(d)</td>
+        <td>Month &amp; year of manufacture/packing</td>
+        <td><span class="pill red">HIGH</span></td>
+      </tr>
+      <tr>
+        <td>LM-RULE-005</td>
+        <td>Rule 6(1)(n) + 6(2)</td>
+        <td>Consumer care phone + email + address</td>
+        <td><span class="pill red">HIGH</span></td>
+      </tr>
+      <tr>
+        <td>LM-RULE-006</td>
+        <td>Rule 6(11)</td>
+        <td>Unit Sale Price per g/ml/kg/L</td>
+        <td><span class="pill amber">MEDIUM</span></td>
+      </tr>
+      <tr>
+        <td>LM-RULE-007</td>
+        <td>Rule 7 &amp; 8</td>
+        <td>Physical character height ≥ 2mm / 4mm / 6mm</td>
+        <td><span class="pill red">HIGH</span></td>
+      </tr>
+      <tr>
+        <td>LM-RULE-008</td>
+        <td>Rule 6(1)(aa)</td>
+        <td>Country of origin for imported goods</td>
+        <td><span class="pill amber">MEDIUM</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Verdict States</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Status</th>
+        <th>Meaning</th>
+        <th>Who can escalate?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="pill green">✅ COMPLIANT</span></td>
+        <td>Declaration found, regex matched, confidence ≥ threshold</td>
+        <td>No action needed</td>
+      </tr>
+      <tr>
+        <td><span class="pill amber">⚠️ MANUAL_REVIEW</span></td>
+        <td>Partial detection or low confidence</td>
+        <td>Officer reviews physically</td>
+      </tr>
+      <tr>
+        <td><span class="pill red">❌ POTENTIAL_NON_COMPLIANCE</span></td>
+        <td>Not detected or explicitly obliterated</td>
+        <td>Auto-escalates to officer queue</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Font Size Formula — Rule 7 &amp; 8</h3>
+  <pre>
+estimatedMm = (packageHeightMm / imageHeightPx) × measuredCharHeightPx
+
+Minimum by net quantity:
+  &lt; 50g or 50ml   → 1.0 mm
+  50g – 200g      → 2.0 mm  ← most common
+  200g – 1kg      → 4.0 mm
+  &gt; 1kg or 1L    → 6.0 mm
+</pre>
+
+  <!-- PORTALS -->
+  <h2>👥 Four Portals</h2>
+  <div class="portal-grid">
+    <div class="portal-card">
+      <div class="portal-icon">👤</div>
+      <h4>Consumer Portal <code>/consumer</code></h4>
+      <ul>
+        <li>Upload / select preset image</li>
+        <li>Animated 4-step scan pipeline</li>
+        <li>Rule-by-rule breakdown with evidence</li>
+        <li>File grievance → complaint ID</li>
+        <li>Track complaint status</li>
+      </ul>
+    </div>
+    <div class="portal-card">
+      <div class="portal-icon">🏭</div>
+      <h4>Company Portal <code>/company</code></h4>
+      <ul>
+        <li>Compliance rate dashboard</li>
+        <li>Grievance inbox with consumer proof</li>
+        <li>Pre-launch label simulator</li>
+        <li>Submit corrective action + artwork</li>
+        <li>Risk score 0–100</li>
+      </ul>
+    </div>
+    <div class="portal-card">
+      <div class="portal-icon">🏛️</div>
+      <h4>Government Portal <code>/government</code></h4>
+      <ul>
+        <li>Recharts analytics (violations by rule/category)</li>
+        <li>High-risk company watchlist</li>
+        <li>Human-in-the-loop verification queue</li>
+        <li>Mark Verified Violation → Section 36(1)</li>
+        <li>Download official PDF inspection report</li>
+        <li>Schedule on-site inspections</li>
+      </ul>
+    </div>
+    <div class="portal-card">
+      <div class="portal-icon">🔑</div>
+      <h4>Admin Portal <code>/admin</code></h4>
+      <ul>
+        <li>Versioned Rule Registry (v2026.1)</li>
+        <li>Immutable audit event ledger</li>
+        <li>Non-repudiation trail</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- TECH STACK -->
+  <h2>🛠️ Tech Stack</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Layer</th>
+        <th>Technology</th>
+        <th>Justification</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Frontend</td>
+        <td>React 19 + TypeScript</td>
+        <td>Industry standard, type-safe, component reuse across portals</td>
+      </tr>
+      <tr>
+        <td>Build</td>
+        <td>Vite 6</td>
+        <td>Sub-second HMR, ESM-native, 10× faster than Webpack</td>
+      </tr>
+      <tr>
+        <td>Styling</td>
+        <td>Tailwind CSS</td>
+        <td>Utility-first, no CSS file bloat, consistent design system</td>
+      </tr>
+      <tr>
+        <td>Charts</td>
+        <td>Recharts</td>
+        <td>Composable React charting for government analytics dashboard</td>
+      </tr>
+      <tr>
+        <td>Backend</td>
+        <td>Fastify (Node.js)</td>
+        <td>3× faster than Express, schema validation built-in</td>
+      </tr>
+      <tr>
+        <td>ORM</td>
+        <td>Drizzle ORM</td>
+        <td>Type-safe SQL, zero overhead, SQLite↔PostgreSQL swap in 1 env var</td>
+      </tr>
+      <tr>
+        <td>Database</td>
+        <td>SQLite (better-sqlite3)</td>
+        <td>Zero infrastructure for demo; same ORM API as PostgreSQL</td>
+      </tr>
+      <tr>
+        <td>PDF</td>
+        <td>PDFKit</td>
+        <td>Programmatic legal-grade PDF reports with statutory disclaimers</td>
+      </tr>
+      <tr>
+        <td>Monorepo</td>
+        <td>npm workspaces</td>
+        <td>Shared compliance-engine package between api and web</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Q&A -->
+  <h2>❓ Jury Q&amp;A</h2>
+
+  <div class="qa-block">
+    <div class="qa-q">Q1: "Why not use actual AI/ML for OCR?"</div>
+    <div class="qa-a">In the prototype, OCR is simulated with realistic text fixtures to demonstrate the full compliance
+      pipeline reliably. In production, we integrate <strong>Google Cloud Vision API or AWS Textract</strong> — both
+      return plain text OCR output that plugs directly into our <code>DeclarationExtractor</code>. The compliance engine
+      is completely OCR-agnostic; it only needs raw text. This separation of concerns is by design.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q2: "How does font size measurement work?"</div>
+    <div class="qa-a">It's basic <strong>photogrammetry</strong>. We know the physical package dimensions (e.g., 190mm ×
+      120mm) from user input and image pixel dimensions. So:
+      <code>mm_per_pixel = packageHeightMm / imageHeightPx</code>. Multiply by measured character height in pixels →
+      real-world mm. Compare to Rule 7/8 schedule: 2mm min for 50g–200g, 4mm for up to 1kg, 6mm for above 1kg.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q3: "Why SQLite? That's not production-grade."</div>
+    <div class="qa-a"><strong>Drizzle ORM makes it interchangeable</strong> — one environment variable
+      <code>DATABASE_URL</code> switches the driver to PostgreSQL. SQLite is ideal for a hackathon prototype: zero
+      infrastructure, instant startup, full SQL support. The schema and queries are identical; we don't use any
+      SQLite-specific syntax.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q4: "What's the legal basis for your three verdict states?"</div>
+    <div class="qa-a">This directly reflects the <strong>Legal Metrology Act, 2009</strong>. Section 18 makes
+      non-compliance a cognizable offense, but formal adjudication requires a Weights &amp; Measures Inspector. Our AI
+      can only establish <em>prima facie</em> evidence. COMPLIANT (no action), POTENTIAL_NON_COMPLIANCE (flagged for
+      review), MANUAL_REVIEW (borderline). Only the government officer can issue a 'Verified Violation' — reflecting the
+      <strong>human-in-the-loop</strong> principle mandated by law.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q5: "What happens when a consumer files a complaint?"</div>
+    <div class="qa-a">Complaint gets unique ID <code>LM-2026-XXXXXX</code>. Stored with scan ID, OCR findings, consumer
+      location, purchase store. Company sees it with <strong>48 hours to respond</strong>. If no response or rejected —
+      auto-escalates to government verification queue. Officer marks "Verified Violation" → issues compounding notice
+      under <strong>Section 36(1)</strong>.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q6: "How do you prevent false positives?"</div>
+    <div class="qa-a">Three ways: (1) <strong>Confidence scoring</strong> — anything below threshold → MANUAL_REVIEW,
+      not auto-flagged. (2) <strong>Statutory disclaimer</strong> on every report — AI screening only, not a legal
+      order. (3) <strong>Human-in-the-loop</strong> — no violation is legally actionable without officer verification.
+      False positives burden companies, not consumers.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q7: "Can this scale to crores of product scans?"</div>
+    <div class="qa-a">The compliance engine is a <strong>pure function — stateless, no I/O</strong>. Deployable as
+      Lambda/Cloud Function horizontally. Fastify benchmarks at 70,000+ req/sec. Bottlenecks (database, OCR API) solved
+      by PostgreSQL + connection pooling + OCR result caching by image hash. Architecture already has this separation
+      ready.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q8: "What's your USP over manual inspection?"</div>
+    <div class="qa-a">Manual inspection covers roughly <strong>0.0001% of 10 billion+ packaged products</strong> sold
+      annually in India. VidhiTrace enables 1.4 billion citizens to become the first line of compliance enforcement —
+      every scan is evidence-backed, timestamped, and legally traceable. Manufacturers proactively fix labels. Officers
+      focus on <strong>verified high-risk cases</strong> instead of routine screening.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q9: "How do you handle rule version changes when DoCA amends rules?"</div>
+    <div class="qa-a">Version <code>2026.1</code> is captured in <code>CURRENT_RULESET_VERSION</code> constant and
+      stamped on every scan record. Rules are in a typed array in <code>rules/definitions.ts</code>. When DoCA amends
+      rules, we increment the version, modify definitions, and the Admin Rule Registry reflects it immediately.
+      <strong>Historical scans retain their original rule version</strong> for audit integrity — non-repudiation by
+      design.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Q10: "Is the data secure? What about consumer privacy?"</div>
+    <div class="qa-a">Uploaded images stored server-side with <strong>UUID filename</strong> — no PII in URL. Consumer
+      passwords are <strong>bcrypt-hashed</strong>. Role-based access control — consumers can't see government
+      workbenches and vice versa. Production additions: JWT auth, HTTPS, rate limiting, image expiry. Demo uses token
+      auth for rapid iteration.</div>
+  </div>
+
+  <!-- DEMO SCRIPT -->
+  <h2>🎬 3-Minute Demo Script</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>What to Show</th>
+        <th>What to Say</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Landing Page</td>
+        <td>"VidhiTrace — Scan Karo, Rules Check Karo. Three portals — one for citizens, one for manufacturers, one for
+          government officers."</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>🍪 Defect Pack → Scan</td>
+        <td>"Watch the 4-step scan pipeline. 48% compliance — MRP obliterated, date missing. Both flagged under Rule
+          6(1)(e) and 6(1)(d)."</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>✨ Original Pack → Scan</td>
+        <td>"Same product, original label — 98% compliant. All declarations present and verified."</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Government Portal</td>
+        <td>"The Command Center shows violations by rule and category. The verification queue — human-in-the-loop
+          adjudication."</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Company Pre-launch Simulator</td>
+        <td>"Manufacturers test their labels before printing — preventive compliance, not reactive firefighting."</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- KEY NUMBERS -->
+  <h2>🔑 Key Numbers</h2>
+  <div class="numbers-grid">
+    <div class="number-card">
+      <div class="num">8</div>
+      <div class="label">Rules Enforced (v2026.1)</div>
+    </div>
+    <div class="number-card">
+      <div class="num">3</div>
+      <div class="label">Verdict States</div>
+    </div>
+    <div class="number-card">
+      <div class="num">4</div>
+      <div class="label">Role Portals</div>
+    </div>
+    <div class="number-card">
+      <div class="num">4</div>
+      <div class="label">Demo Accounts (all demo123)</div>
+    </div>
+    <div class="number-card">
+      <div class="num">5173</div>
+      <div class="label">Frontend Port (Vite)</div>
+    </div>
+    <div class="number-card">
+      <div class="num">3001</div>
+      <div class="label">API Port (Fastify)</div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px">
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Score formula</td>
+          <td><code>(compliant + review×0.5) / total × 100</code></td>
+        </tr>
+        <tr>
+          <td>Font formula</td>
+          <td><code>(packageHeightMm / imageHeightPx) × charHeightPx</code></td>
+        </tr>
+        <tr>
+          <td>Defect image score</td>
+          <td>48% — POTENTIAL NON-COMPLIANCE</td>
+        </tr>
+        <tr>
+          <td>Original image score</td>
+          <td>98% — COMPLIANT</td>
+        </tr>
+        <tr>
+          <td>Problem Statement</td>
+          <td>SIH26034</td>
+        </tr>
+        <tr>
+          <td>Ministry</td>
+          <td>Ministry of Consumer Affairs, Food &amp; Public Distribution (DoCA)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ACE CARD -->
+  <div class="ace">
+    <h3>🃏 Ace Card — Use this if they push hard</h3>
+    <p>"Every scan in VidhiTrace has a legal audit trail — scan ID, timestamp, rule version, OCR evidence, and officer
+      action. This creates the digital evidentiary chain required under Section 18 of the Legal Metrology Act, 2009.
+      We're not just a scanning tool — we're building India's first citizen-powered legal metrology enforcement
+      ecosystem."</p>
+  </div>
+
+  <p style="margin-top:32px;text-align:center;color:#94a3b8;font-size:11px;">
+    VidhiTrace · SIH26034 · Team Prep Guide · Confidential
+  </p>
+
+</body>
+
+</html>

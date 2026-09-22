@@ -53,7 +53,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({
               </span>
               <div className="relative w-full max-h-[420px] overflow-hidden rounded-lg flex items-center justify-center bg-slate-900">
                 <img
-                  src={imageUrl || '/samples/apex_biscuits.svg'}
+                  src={imageUrl || '/samples/Defect_Image.jpeg'}
                   alt="Scanned Package"
                   className="max-h-[400px] w-auto object-contain rounded"
                 />

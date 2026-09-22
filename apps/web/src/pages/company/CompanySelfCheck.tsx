@@ -6,7 +6,7 @@ import confetti from 'canvas-confetti';
 
 export const CompanySelfCheck: React.FC = () => {
   const [selectedArtwork, setSelectedArtwork] = useState<string>('draft_label');
-  const [previewUrl, setPreviewUrl] = useState<string>('/samples/apex_biscuits.svg');
+  const [previewUrl, setPreviewUrl] = useState<string>('/samples/Defect_Image.jpeg');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [result, setResult] = useState<ScanResult | null>(null);
 
@@ -14,9 +14,9 @@ export const CompanySelfCheck: React.FC = () => {
     setSelectedArtwork(type);
     setResult(null);
     if (type === 'draft_label') {
-      setPreviewUrl('/samples/apex_biscuits.svg');
+      setPreviewUrl('/samples/Defect_Image.jpeg');
     } else {
-      setPreviewUrl('/samples/apex_biscuits_corrected.svg');
+      setPreviewUrl('/samples/Original_Image.jpeg');
     }
   };
 
@@ -28,25 +28,21 @@ export const CompanySelfCheck: React.FC = () => {
       const isCorrected = selectedArtwork === 'corrected_label';
       const mockOcrText = isCorrected
         ? `
-Apex Delight Cream Biscuits Vanilla
-Manufactured by: Apex Foods Pvt. Ltd., Plot 42, Industrial Area, Sector 5, Haridwar, Uttarakhand - 249403
-Net Quantity: 200 g
-MRP: Rs. 40.00 (inclusive of all taxes)
-Date of Packing: 08/2026
-Batch No: APX-9824-R
-Consumer Care Cell: Toll-Free: 1800-200-8899, Email: care@apexfoods.in
-Address: Same as above
-Unit Sale Price: Rs. 0.20 per g
+BISCUITS NET WEIGHT 250 g
+MRP ₹ (INCL. OF ALL TAXES) 70.00
+Rs. 0.28 Per g
+PKD. 02/11/23
+USE BY. 01/05/24
+LOT No. A11239D
+Marketed By: BRITANNIA INDUSTRIES LTD., 5/1A HUNGERFORD STREET, KOLKATA-700017
+Consumer Care Cell: Ph: (Toll Free) 1-800-4254449 / feedback@britindia.com
 Made in India
 `.trim()
         : `
-Apex Delight Cream Biscuits Vanilla
-Manufactured by: Apex Foods Pvt. Ltd., Plot 42, Industrial Area, Sector 5, Haridwar, Uttarakhand - 249403
-Net Quantity: 200 g
-MRP: Rs. 40.00
-Date of Packing: 07/2026
-Batch No: APX-9824
-Unit Sale Price: Rs. 0.20 per g
+BISCUITS NET WEIGHT 250 g
+Marketed By: BRITANNIA INDUSTRIES LTD., 5/1A HUNGERFORD STREET, KOLKATA-700017
+Consumer Care Cell: Ph: (Toll Free) 1-800-4254449 / feedback@britindia.com
+[ALERT: MRP and Date declaration area is obscured / blacked out]
 Made in India
 `.trim();
 

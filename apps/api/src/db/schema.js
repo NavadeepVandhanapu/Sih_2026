@@ -15,7 +15,7 @@ export const companies = sqliteTable('companies', {
     id: text('id').primaryKey(),
     name: text('name').notNull(),
     registrationNo: text('registration_no').notNull().unique(),
-    category: text('category').notNull(), // Food, Cosmetics, Household, Electronics
+    category: text('category').notNull(), // Snacks & Confectionery, Dairy & Milk Products, Edible Oils & Ghee, Beverages & Juices, Staples, Grains & Pulses
     riskScore: integer('risk_score').notNull().default(20), // 0 - 100
     riskLevel: text('risk_level').notNull().default('LOW'), // 'LOW' | 'MEDIUM' | 'HIGH'
     address: text('address').notNull(),

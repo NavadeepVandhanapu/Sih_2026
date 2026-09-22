@@ -9,7 +9,7 @@
 
 ## 1. Overview & Vision
 
-**METROLOGIX AI** is an AI-assisted compliance screening, grievance redressal, and enforcement-support ecosystem connecting **Consumers**, **Manufacturers/Packers**, and **Government Legal Metrology Officers**.
+**VidhiTrace** is an AI-assisted compliance screening, grievance redressal, and enforcement-support ecosystem connecting **Consumers**, **Manufacturers/Packers**, and **Government Legal Metrology Officers**.
 
 The platform operates on the core philosophy:
 > **SCAN → EXTRACT → VALIDATE → EXPLAIN → REPORT → RESOLVE → ESCALATE → ENFORCE**
