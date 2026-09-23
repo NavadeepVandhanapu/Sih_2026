@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { StatusBadge } from '../../components/StatusBadge';
 import { EvidenceModal } from '../../components/EvidenceModal';
@@ -14,6 +14,7 @@ import {
   Download,
   ShieldAlert,
   ArrowRight,
+  CheckCircle2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -37,6 +38,60 @@ export const ConsumerScan: React.FC = () => {
   const [consumerNotes, setConsumerNotes] = useState<string>('');
   const [complaintSubmitting, setComplaintSubmitting] = useState<boolean>(false);
   const [filedComplaintId, setFiledComplaintId] = useState<string | null>(null);
+
+  // Webcam states
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const startCamera = async () => {
+    setIsCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      alert("Could not access camera. Please check permissions.");
+      setIsCameraOpen(false);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        setPreviewUrl(dataUrl);
+        setSelectedPreset('custom');
+      }
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream?.getTracks().forEach(track => track.stop());
+      setIsCameraOpen(false);
+    }
+  };
+
+  const closeCamera = () => {
+    if (videoRef.current) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream?.getTracks().forEach(track => track.stop());
+    }
+    setIsCameraOpen(false);
+  };
+
+  // Ensure camera tracks are stopped if component unmounts
+  useEffect(() => {
+    return () => {
+      if (videoRef.current) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream?.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
 
   const handleSelectPreset = (preset: string) => {
     setSelectedPreset(preset);
@@ -341,100 +396,130 @@ export const ConsumerScan: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 relative">
+      {/* Decorative Background Glows */}
+      <div className="absolute top-0 left-1/4 w-80 h-80 bg-blue-500/10 rounded-full mix-blend-multiply filter blur-[80px] -z-10 animate-pulse" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full mix-blend-multiply filter blur-[100px] -z-10 animate-pulse" style={{ animationDelay: '2s' }} />
+
       {/* Minimal Header */}
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display tracking-tight">
+      <div className="text-center space-y-2 relative z-10">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 font-display tracking-tight">
           Verify Packaged Commodity
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
+        <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto font-medium">
           Scan any packaged product to instantly audit mandatory declarations and font sizes under Legal Metrology Rules, 2011.
         </p>
       </div>
 
       {/* Preset Pills */}
-      <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
+      <div className="flex flex-wrap items-center justify-center gap-2 text-xs relative z-10">
         <span className="text-slate-400 font-medium mr-1">Demo presets:</span>
         <button
           onClick={() => handleSelectPreset('defect_image')}
-          className={`px-3 py-1.5 rounded-full transition font-semibold flex items-center gap-1.5 ${selectedPreset === 'defect_image'
-              ? 'bg-slate-900 text-white shadow-sm'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          className={`px-3 py-1.5 rounded-full transition font-semibold flex items-center gap-1.5 shadow-sm ${selectedPreset === 'defect_image'
+              ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
             }`}
         >
-          <span>🍪 Defect Pack (Obscured MRP)</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+          <span className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-rose-500" /> Defect Pack (Obscured MRP)</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
         </button>
         <button
           onClick={() => handleSelectPreset('original_image')}
-          className={`px-3 py-1.5 rounded-full transition font-semibold flex items-center gap-1.5 ${selectedPreset === 'original_image'
-              ? 'bg-slate-900 text-white shadow-sm'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          className={`px-3 py-1.5 rounded-full transition font-semibold flex items-center gap-1.5 shadow-sm ${selectedPreset === 'original_image'
+              ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
             }`}
         >
-          <span>✨ Original Pack (Compliant)</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Original Pack (Compliant)</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>
         </button>
         <button
           onClick={() => handleSelectPreset('greenbasket_oil')}
-          className={`px-3 py-1.5 rounded-full transition font-semibold flex items-center gap-1.5 ${selectedPreset === 'greenbasket_oil'
-              ? 'bg-slate-900 text-white shadow-sm'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          className={`px-3 py-1.5 rounded-full transition font-semibold flex items-center gap-1.5 shadow-sm ${selectedPreset === 'greenbasket_oil'
+              ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
             }`}
         >
           <span>Almond Oil</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-        </button>
-        <button
-          onClick={() => handleSelectPreset('nova_dishwash')}
-          className={`px-3 py-1.5 rounded-full transition font-semibold flex items-center gap-1.5 ${selectedPreset === 'nova_dishwash'
-              ? 'bg-slate-900 text-white shadow-sm'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-        >
-          <span>Dishwash</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>
         </button>
       </div>
 
       {/* Centered Preview / Upload Box */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm max-w-xl mx-auto space-y-5">
-        <div className="relative rounded-2xl overflow-hidden bg-slate-950 flex items-center justify-center min-h-[260px] p-4">
-          <img
-            src={previewUrl}
-            alt="Product Label"
-            className="max-h-[240px] w-auto object-contain rounded-lg"
-          />
-          {isScanning && <div className="animate-scan-line"></div>}
+      <div className="glass-panel rounded-3xl p-6 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 max-w-xl mx-auto space-y-6 relative z-10 transition-all duration-300 hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)]">
+        <div className="relative rounded-2xl overflow-hidden bg-slate-950 flex items-center justify-center min-h-[280px] p-4 shadow-inner ring-1 ring-white/10">
+          {isCameraOpen ? (
+            <>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover rounded-lg"
+              />
+              <button
+                onClick={capturePhoto}
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white text-blue-600 rounded-full p-4 shadow-xl hover:scale-110 transition border-4 border-blue-500/30"
+              >
+                <ScanLine className="w-6 h-6" />
+              </button>
+              <button
+                onClick={closeCamera}
+                className="absolute top-4 right-4 bg-black/50 text-white rounded-full p-2 hover:bg-black/70 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <>
+              <img
+                src={previewUrl}
+                alt="Product Label"
+                className={`max-h-[260px] w-auto object-contain rounded-lg transition-all duration-700 ease-out ${isScanning ? 'blur-sm scale-110 opacity-70' : 'blur-0'}`}
+              />
+              {isScanning && <div className="animate-scan-line"></div>}
+              {/* Subtle grid background for the scanner */}
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNykiLz48L3N2Zz4=')] opacity-50 pointer-events-none"></div>
 
-          {/* Minimal Upload Overlay Button */}
-          <label className="absolute bottom-3 right-3 bg-white/90 hover:bg-white text-slate-800 text-xs font-semibold px-3 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1.5 backdrop-blur-sm">
-            <UploadCloud className="w-3.5 h-3.5" />
-            Upload File
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-          </label>
+              {/* Minimal Upload Overlay Button */}
+              <div className="absolute bottom-4 right-4 flex gap-2">
+                <button
+                  onClick={startCamera}
+                  className="bg-white/90 hover:bg-white text-slate-800 text-xs font-bold px-4 py-2 rounded-xl cursor-pointer shadow-lg shadow-black/10 transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-md border border-white/50"
+                >
+                  <ScanLine className="w-4 h-4 text-blue-600" />
+                  Camera
+                </button>
+                <label className="bg-white/90 hover:bg-white text-slate-800 text-xs font-bold px-4 py-2 rounded-xl cursor-pointer shadow-lg shadow-black/10 transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-md border border-white/50">
+                  <UploadCloud className="w-4 h-4 text-blue-600" />
+                  Upload
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Scan Button */}
         <button
           onClick={startAnalysis}
           disabled={isScanning}
-          className="w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-slate-900 hover:bg-slate-800 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-60"
+          className="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 transition-all shadow-lg shadow-slate-900/20 hover:shadow-slate-900/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
         >
           {isScanning ? (
             <>
-              <ScanLine className="w-4 h-4 animate-spin" />
-              {scanStepText}
+              <ScanLine className="w-5 h-5 animate-spin text-blue-400" />
+              <span className="tracking-wide">{scanStepText}</span>
             </>
           ) : (
             <>
-              <ScanLine className="w-4 h-4" />
-              Scan Packaging Label
+              <ScanLine className="w-5 h-5 text-blue-400" />
+              <span className="tracking-wide">Scan Packaging Label</span>
             </>
           )}
         </button>

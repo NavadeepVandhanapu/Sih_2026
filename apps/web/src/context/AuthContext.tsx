@@ -76,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (usersList && usersList.length > 0) {
           setDemoUsers(usersList);
           const savedUserId = localStorage.getItem('demo_user_id');
-          const initial = usersList.find((u) => u.id === savedUserId) || usersList.find((u) => u.role === 'CONSUMER') || usersList[0];
+          const initial = usersList.find((u) => u.id === savedUserId);
           if (initial) setUser(initial);
         } else {
           throw new Error('Empty user list');
@@ -86,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Gracefully use built-in demo users for standalone/Vercel previews
         setDemoUsers(FALLBACK_DEMO_USERS);
         const savedUserId = localStorage.getItem('demo_user_id');
-        const initial = FALLBACK_DEMO_USERS.find((u) => u.id === savedUserId) || FALLBACK_DEMO_USERS[0];
+        const initial = FALLBACK_DEMO_USERS.find((u) => u.id === savedUserId);
         if (initial) setUser(initial);
       })
       .finally(() => {

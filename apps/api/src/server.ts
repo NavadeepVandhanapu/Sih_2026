@@ -68,6 +68,44 @@ async function start() {
   }
 
 // -------------------------------------------------------------
+// BULLETINS ROUTE
+// -------------------------------------------------------------
+
+server.get('/api/bulletins', async (request, reply) => {
+  const bulletins = [
+    {
+      id: 1,
+      title: 'FSSAI Mandates Nutritional Info on Front of Pack',
+      date: 'Today',
+      category: 'Regulation',
+      source: 'FSSAI Notification',
+    },
+    {
+      id: 2,
+      title: 'New Legal Metrology Standards for Edible Oil Packaging',
+      date: 'Yesterday',
+      category: 'Standards',
+      source: 'DoCA Press Release',
+    },
+    {
+      id: 3,
+      title: 'Crackdown on Misleading MRPs in Snack Foods',
+      date: '3 Days Ago',
+      category: 'Enforcement',
+      source: 'National Consumer Forum',
+    },
+    {
+      id: 4,
+      title: 'Revised Font Size Guidelines for Spice Packets',
+      date: 'Last Week',
+      category: 'Advisory',
+      source: 'Ministry of Consumer Affairs',
+    }
+  ];
+  return reply.send(bulletins);
+});
+
+// -------------------------------------------------------------
 // AUTH & USERS ROUTES
 // -------------------------------------------------------------
 

@@ -18,7 +18,11 @@ import {
   CheckCircle2,
   ArrowLeft,
   Phone,
-  Briefcase
+  Briefcase,
+  Bot,
+  ShoppingBag,
+  Factory,
+  Building
 } from 'lucide-react';
 
 interface AuthPageProps {
@@ -191,8 +195,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
               <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-md">
                 <ScanLine className="w-5 h-5" />
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white text-xl flex items-center justify-center shadow-md">
-                🤖
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center shadow-md">
+                <Bot className="w-5 h-5" />
               </div>
             </div>
 
@@ -274,10 +278,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                 className="px-2.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-indigo-200/70 text-left text-xs transition hover:border-blue-300 shadow-xs cursor-pointer group"
               >
                 <div className="font-bold text-slate-800 flex items-center justify-between">
-                  <span>🛍️ Aarav</span>
+                  <span className="flex items-center gap-1.5"><ShoppingBag className="w-3.5 h-3.5 text-blue-500" /> Aarav</span>
                   <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 text-blue-600 transition" />
                 </div>
-                <div className="text-[10px] text-slate-500">Citizen Consumer</div>
+                <div className="text-[10px] text-slate-500 mt-1">Citizen Consumer</div>
               </button>
 
               <button
@@ -287,10 +291,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                 className="px-2.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-indigo-200/70 text-left text-xs transition hover:border-indigo-300 shadow-xs cursor-pointer group"
               >
                 <div className="font-bold text-slate-800 flex items-center justify-between">
-                  <span>🏭 Rajesh</span>
+                  <span className="flex items-center gap-1.5"><Factory className="w-3.5 h-3.5 text-indigo-500" /> Rajesh</span>
                   <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 text-indigo-600 transition" />
                 </div>
-                <div className="text-[10px] text-slate-500">Apex Foods (Brand)</div>
+                <div className="text-[10px] text-slate-500 mt-1">Apex Foods (Brand)</div>
               </button>
 
               <button
@@ -300,10 +304,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                 className="px-2.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-indigo-200/70 text-left text-xs transition hover:border-amber-300 shadow-xs cursor-pointer group"
               >
                 <div className="font-bold text-slate-800 flex items-center justify-between">
-                  <span>⚖️ Sunita</span>
+                  <span className="flex items-center gap-1.5"><Scale className="w-3.5 h-3.5 text-amber-500" /> Sunita</span>
                   <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 text-amber-600 transition" />
                 </div>
-                <div className="text-[10px] text-slate-500">Legal Metrology IO</div>
+                <div className="text-[10px] text-slate-500 mt-1">Legal Metrology IO</div>
               </button>
 
               <button
@@ -313,10 +317,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                 className="px-2.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-indigo-200/70 text-left text-xs transition hover:border-purple-300 shadow-xs cursor-pointer group"
               >
                 <div className="font-bold text-slate-800 flex items-center justify-between">
-                  <span>🏛️ Dr. Nambiar</span>
+                  <span className="flex items-center gap-1.5"><Building className="w-3.5 h-3.5 text-purple-500" /> Dr. Nambiar</span>
                   <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 text-purple-600 transition" />
                 </div>
-                <div className="text-[10px] text-slate-500">Director / Admin</div>
+                <div className="text-[10px] text-slate-500 mt-1">Director / Admin</div>
               </button>
             </div>
           </div>
@@ -396,7 +400,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="text-base mb-1">🛍️</div>
+                    <div className="mb-1"><ShoppingBag className="w-4 h-4 text-blue-600" /></div>
                     <div className="font-bold text-[11px]">Consumer</div>
                     <div className="text-[9px] text-slate-400">Citizen</div>
                   </button>
@@ -410,7 +414,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="text-base mb-1">🏭</div>
+                    <div className="mb-1"><Factory className="w-4 h-4 text-indigo-600" /></div>
                     <div className="font-bold text-[11px]">Brand / Mfr</div>
                     <div className="text-[9px] text-slate-400">Packer</div>
                   </button>
@@ -424,7 +428,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="text-base mb-1">⚖️</div>
+                    <div className="mb-1"><Scale className="w-4 h-4 text-amber-600" /></div>
                     <div className="font-bold text-[11px]">LM Officer</div>
                     <div className="text-[9px] text-slate-400">Inspector</div>
                   </button>

@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
+import { Sparkles } from 'lucide-react';
+
 import { ConsumerScan } from './pages/consumer/ConsumerScan';
 import { ConsumerComplaints } from './pages/consumer/ConsumerComplaints';
 import { CompanyDashboard } from './pages/company/CompanyDashboard';
@@ -16,6 +18,80 @@ import { AdminAuditLogs } from './pages/admin/AdminAuditLogs';
 
 import { LandingPage } from './pages/LandingPage';
 import { AuthPage } from './pages/AuthPage';
+
+const SplashScreen: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+  const [isExiting, setIsExiting] = useState(false);
+
+  useEffect(() => {
+    // Start exit animation after 4 seconds
+    const timer = setTimeout(() => {
+      setIsExiting(true);
+      // Wait for exit animation to finish before removing splash screen
+      setTimeout(onComplete, 1000); 
+    }, 4000); 
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white overflow-hidden pointer-events-none transition-opacity duration-1000 ${isExiting ? 'opacity-0' : 'opacity-100'}`}>
+      
+      {/* Animation Keyframes */}
+      <style>{`
+        @keyframes cinematic-zoom {
+          0% {
+            transform: scale(4);
+            opacity: 0;
+            filter: blur(10px);
+          }
+          15% {
+            transform: scale(1.05);
+            opacity: 1;
+            filter: brightness(1.2);
+          }
+          20% {
+            transform: scale(1);
+            opacity: 1;
+            filter: brightness(1);
+          }
+          85% {
+            transform: scale(0.95);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(5);
+            opacity: 0;
+          }
+        }
+        .animate-cinematic {
+          animation: cinematic-zoom 4s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+        }
+
+        @keyframes shimmer-sweep {
+          0% { transform: translateX(-150%) skewX(-20deg); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(300%) skewX(-20deg); opacity: 0; }
+        }
+        .animate-shimmer {
+          animation: shimmer-sweep 2.5s cubic-bezier(0.4, 0, 0.2, 1) 1.2s forwards;
+        }
+      `}</style>
+      
+      {/* The Animated Intro Logo */}
+      <div className="relative flex items-center justify-center animate-cinematic w-full h-full z-10">
+         <div className="relative overflow-hidden px-10 py-6">
+           <img 
+             src="/vidhitrace-logo-original.png" 
+             alt="VidhiTrace Logo" 
+             className="w-[280px] sm:w-[400px] md:w-[600px] h-auto object-contain drop-shadow-xl" 
+           />
+           {/* Shimmer sweep effect for slogan highlight */}
+           <div className="absolute inset-y-0 w-[50%] bg-gradient-to-r from-transparent via-blue-500/30 to-transparent -left-[100%] animate-shimmer blur-[4px]" style={{ mixBlendMode: 'plus-lighter' }} />
+         </div>
+      </div>
+    </div>
+  );
+};
 
 const RoleRedirect: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -95,10 +171,13 @@ export const AppContent: React.FC = () => {
 };
 
 export const App: React.FC = () => {
+  const [showSplash, setShowSplash] = useState(true);
+
   return (
     <Router>
       <AuthProvider>
         <AppContent />
+        {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
       </AuthProvider>
     </Router>
   );
