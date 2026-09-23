@@ -157,38 +157,39 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-10 px-4 sm:px-6 relative overflow-hidden">
-      {/* BACKGROUND GLOW */}
+      {/* PREMIUM BACKGROUND GLOW */}
       <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
-        <div className="absolute top-10 -right-20 w-[500px] h-[500px] rounded-full bg-blue-300/20 blur-3xl animate-pulse" />
-        <div className="absolute -bottom-20 -left-20 w-[500px] h-[500px] rounded-full bg-indigo-300/20 blur-3xl" />
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-blue-400/20 blur-[100px] animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full bg-indigo-400/20 blur-[100px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-violet-300/10 blur-[120px]" />
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
-            backgroundImage: `radial-gradient(#1e293b 1px, transparent 1px)`,
-            backgroundSize: '24px 24px',
+            backgroundImage: `radial-gradient(#0f172a 1px, transparent 1px)`,
+            backgroundSize: '32px 32px',
           }}
         />
       </div>
 
-      <div className="max-w-md w-full mx-auto space-y-6">
+      <div className="max-w-md w-full mx-auto space-y-6 relative z-10">
         {/* Back Link */}
         <div className="flex items-center justify-between">
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-slate-200"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Home</span>
           </Link>
 
-          <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-[11px] font-bold">
+          <div className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-blue-50/80 backdrop-blur-sm border border-blue-200/50 text-blue-700 text-[11px] font-bold shadow-sm">
             <ShieldCheck className="w-3 h-3 text-blue-600" />
             <span>DoCA Statutory Portal</span>
           </div>
         </div>
 
-        {/* Card Container */}
-        <div className="bg-white/95 backdrop-blur-xl rounded-3xl border border-slate-200/90 shadow-xl shadow-slate-200/60 p-6 sm:p-8 space-y-6">
+        {/* Card Container - Premium Glassmorphism */}
+        <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] border border-white shadow-[0_8px_40px_rgb(0,0,0,0.08)] p-6 sm:p-8 space-y-6">
           {/* Header Brand & Mascot */}
           <div className="text-center space-y-2">
             <div className="flex items-center justify-center gap-2">
@@ -338,7 +339,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="consumer@demo.com"
                     required
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200/80 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all shadow-sm"
                   />
                 </div>
               </div>
@@ -355,7 +356,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200/80 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all shadow-sm"
                   />
                   <button
                     type="button"
@@ -394,37 +395,37 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                   <button
                     type="button"
                     onClick={() => setRole('CONSUMER')}
-                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                       role === 'CONSUMER'
-                        ? 'bg-blue-50/80 border-blue-500 text-blue-900 shadow-xs'
+                        ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500 text-blue-900 shadow-md transform -translate-y-0.5'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="mb-1"><ShoppingBag className="w-4 h-4 text-blue-600" /></div>
-                    <div className="font-bold text-[11px]">Consumer</div>
-                    <div className="text-[9px] text-slate-400">Citizen</div>
+                    <div className="mb-1"><ShoppingBag className="w-5 h-5 text-blue-600" /></div>
+                    <div className="font-bold text-xs">Consumer</div>
+                    <div className="text-[10px] text-slate-400">Citizen</div>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setRole('COMPANY')}
-                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                       role === 'COMPANY'
-                        ? 'bg-indigo-50/80 border-indigo-500 text-indigo-900 shadow-xs'
+                        ? 'bg-indigo-50 border-indigo-500 ring-1 ring-indigo-500 text-indigo-900 shadow-md transform -translate-y-0.5'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="mb-1"><Factory className="w-4 h-4 text-indigo-600" /></div>
-                    <div className="font-bold text-[11px]">Brand / Mfr</div>
-                    <div className="text-[9px] text-slate-400">Packer</div>
+                    <div className="mb-1"><Factory className="w-5 h-5 text-indigo-600" /></div>
+                    <div className="font-bold text-xs">Brand / Mfr</div>
+                    <div className="text-[10px] text-slate-400">Packer</div>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setRole('GOVERNMENT_OFFICER')}
-                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                       role === 'GOVERNMENT_OFFICER'
-                        ? 'bg-amber-50/80 border-amber-500 text-amber-900 shadow-xs'
+                        ? 'bg-amber-50 border-amber-500 ring-1 ring-amber-500 text-amber-900 shadow-md transform -translate-y-0.5'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -446,7 +447,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Priya Sharma"
                     required
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200/80 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all shadow-sm"
                   />
                 </div>
               </div>
@@ -462,7 +463,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="priya@example.com"
                     required
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200/80 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all shadow-sm"
                   />
                 </div>
               </div>
@@ -479,7 +480,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                       onChange={(e) => setCompanyName(e.target.value)}
                       placeholder="e.g. PureHealth Organics Pvt Ltd"
                       required
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200/80 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white transition-all shadow-sm"
                     />
                   </div>
                 </div>
@@ -495,7 +496,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+91 98765 43210"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200/80 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all shadow-sm"
                   />
                 </div>
               </div>
@@ -511,7 +512,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Min 6 chars"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                      className="w-full pl-10 pr-3 py-3 rounded-xl border border-slate-200/80 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all shadow-sm"
                     />
                   </div>
                 </div>
@@ -525,7 +526,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Repeat"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                      className="w-full pl-10 pr-3 py-3 rounded-xl border border-slate-200/80 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all shadow-sm"
                     />
                   </div>
                 </div>
