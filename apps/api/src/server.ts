@@ -108,6 +108,7 @@ server.get('/api/bulletins', async (request, reply) => {
         title: title.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#8217;/g, "'").replace(/&#8216;/g, "'").replace(/&#8220;/g, '"').replace(/&#8221;/g, '"'),
         date: formattedDate,
         category,
+        link,
         source: new URL(link).hostname.replace('www.', '')
       });
     }
@@ -125,6 +126,7 @@ server.get('/api/bulletins', async (request, reply) => {
         date: 'Today',
         category: 'Regulation',
         source: 'fssai.gov.in',
+        link: 'https://fssai.gov.in',
       },
       {
         id: 2,
@@ -132,6 +134,7 @@ server.get('/api/bulletins', async (request, reply) => {
         date: 'Yesterday',
         category: 'Standards',
         source: 'doca.gov.in',
+        link: 'https://doca.gov.in',
       },
       {
         id: 3,
@@ -139,6 +142,7 @@ server.get('/api/bulletins', async (request, reply) => {
         date: '3 Days Ago',
         category: 'Enforcement',
         source: 'consumeraffairs.nic.in',
+        link: 'https://consumeraffairs.nic.in',
       },
       {
         id: 4,
@@ -146,6 +150,7 @@ server.get('/api/bulletins', async (request, reply) => {
         date: 'Last Week',
         category: 'Advisory',
         source: 'bis.gov.in',
+        link: 'https://www.bis.gov.in',
       }
     ];
     return reply.send(fallbacks);

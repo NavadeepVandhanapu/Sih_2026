@@ -625,7 +625,13 @@ export const LandingPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {bulletins.length > 0 ? (
               bulletins.map((bulletin: any) => (
-                <div key={bulletin.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-blue-200 transition-colors group flex items-start gap-4">
+                <a 
+                  key={bulletin.id} 
+                  href={bulletin.link || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-blue-200 transition-colors group flex items-start gap-4 block"
+                >
                   <div className="w-12 h-12 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                     {bulletin.category === 'Regulation' ? <Scale className="w-6 h-6" /> : bulletin.category === 'Standards' ? <CheckCircle2 className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
                   </div>
@@ -640,7 +646,7 @@ export const LandingPage: React.FC = () => {
                     </h4>
                     <p className="text-xs text-slate-500 mt-1">Source: {bulletin.source}</p>
                   </div>
-                </div>
+                </a>
               ))
             ) : (
               <div className="col-span-1 md:col-span-2 text-center py-10 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
@@ -1152,7 +1158,12 @@ export const LandingPage: React.FC = () => {
             showPopup ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0 pointer-events-none'
           }`}
         >
-          <div className="bg-white rounded-2xl shadow-2xl shadow-blue-900/5 border border-slate-100 p-4 max-w-sm w-[320px] sm:w-[360px] flex gap-3 relative overflow-hidden group cursor-pointer hover:border-blue-200 transition-colors">
+          <a 
+            href={bulletins[currentPopupIndex]?.link || '#'} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="bg-white rounded-2xl shadow-2xl shadow-blue-900/5 border border-slate-100 p-4 max-w-sm w-[320px] sm:w-[360px] flex gap-3 relative overflow-hidden group cursor-pointer hover:border-blue-200 transition-colors block"
+          >
             <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
             <div className="bg-blue-50 p-2 rounded-xl h-fit shrink-0 mt-0.5">
               <Bell className="w-4 h-4 text-blue-600 animate-[bounce_2s_infinite]" />
@@ -1175,12 +1186,12 @@ export const LandingPage: React.FC = () => {
               </p>
             </div>
             <button 
-              onClick={(e) => { e.stopPropagation(); setShowPopup(false); }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowPopup(false); }}
               className="absolute top-2 right-2 p-1 text-slate-300 hover:text-slate-500 transition-colors rounded-lg opacity-0 group-hover:opacity-100"
             >
               <XCircle className="w-4 h-4" />
             </button>
-          </div>
+          </a>
         </div>
       )}
 
