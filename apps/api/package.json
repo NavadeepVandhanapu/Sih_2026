@@ -6,7 +6,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "seed": "tsx src/db/seed.ts",
-    "start": "tsx src/server.ts"
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",
