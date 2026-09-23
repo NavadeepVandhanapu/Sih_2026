@@ -356,9 +356,6 @@ export const ConsumerScan: React.FC = () => {
       confetti({ particleCount: 50, spread: 60 });
     }
 
-    setProtectorToast({ show: true, msg: 'Food Safety Guardian! Thanks for scanning and verifying compliance.', pts: 10 });
-    setTimeout(() => setProtectorToast(prev => ({...prev, show: false})), 5000);
-
     setIsScanning(false);
   };
 

@@ -128,7 +128,7 @@ export const ConsumerComplaints: React.FC = () => {
                 </span>
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-extrabold text-white font-display">
-                    {(complaints.length * 50) + 120}
+                    {complaints.length * 50}
                   </span>
                   <span className="text-emerald-500 text-sm">pts</span>
                 </div>
