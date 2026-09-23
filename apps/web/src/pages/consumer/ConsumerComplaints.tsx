@@ -96,28 +96,62 @@ export const ConsumerComplaints: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-      <div className="pb-4 border-b border-slate-100 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 font-display">
-            My Reports
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Track packaging issues you reported and check company replies.
-          </p>
-        </div>
-        <span className="text-xs font-semibold text-slate-500 font-mono">
-          {complaints.length} Reports
-        </span>
+    <div className="min-h-screen bg-slate-50 relative pb-12">
+      {/* BACKGROUND GLOW */}
+      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+        <div className="absolute top-0 left-0 w-[400px] h-[400px] rounded-full bg-emerald-300/10 blur-[80px]" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-blue-300/10 blur-[80px]" />
       </div>
 
-      {loading ? (
-        <div className="p-8 text-center text-slate-400 text-xs">Loading reports...</div>
-      ) : complaints.length === 0 ? (
-        <div className="bg-white rounded-3xl p-8 text-center border border-slate-200/80 text-xs text-slate-500">
-          No reports submitted yet. When you scan a product with issues, you can report it with one click.
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+        
+        {/* PROTECTOR POINTS WIDGET & HEADER */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-6 border-b border-slate-200">
+          <div>
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider mb-2 border border-slate-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span>Consumer Dashboard</span>
+            </div>
+            <h1 className="text-3xl font-extrabold text-slate-900 font-display">
+              My Reports
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm">
+              Track packaging issues you reported and check company replies.
+            </p>
+          </div>
+
+          <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-0.5 rounded-2xl shadow-lg shadow-emerald-500/20 w-full sm:w-auto">
+            <div className="bg-slate-900 rounded-[14px] px-6 py-4 flex items-center justify-between sm:justify-start gap-6">
+              <div>
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-0.5">
+                  Protector Points
+                </span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold text-white font-display">
+                    {complaints.length * 50}
+                  </span>
+                  <span className="text-emerald-500 text-sm">pts</span>
+                </div>
+              </div>
+              <div className="h-10 w-px bg-slate-700/50 hidden sm:block"></div>
+              <div className="text-right sm:text-left">
+                <span className="text-[10px] text-slate-400 block mb-0.5 font-medium">Rank</span>
+                <span className="text-sm font-bold text-white block">Food Safety Guardian</span>
+                <span className="text-[10px] text-emerald-400 font-medium">Top 5% Genuine Scans</span>
+              </div>
+            </div>
+          </div>
         </div>
-      ) : (
+
+        {loading ? (
+          <div className="p-8 text-center text-slate-400 text-xs font-medium">Loading reports...</div>
+        ) : complaints.length === 0 ? (
+          <div className="bg-white/90 backdrop-blur-md rounded-3xl p-12 text-center border border-slate-200/80 shadow-lg shadow-slate-200/40">
+            <ShieldAlert className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-base font-bold text-slate-900 mb-1">No reports submitted yet</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">When you scan a product with missing details, you can report it instantly to protect others and earn Protector Points.</p>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
           {/* Left: Complaints List */}
           <div className="md:col-span-5 space-y-2">
@@ -253,6 +287,7 @@ export const ConsumerComplaints: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

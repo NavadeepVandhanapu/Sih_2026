@@ -45,11 +45,16 @@ Use the **Role Switcher** in the top navigation bar for 1-click live demo switch
 
 ## 4. Technology Stack
 
-- **Frontend:** React 19, TypeScript, Vite 6, Tailwind CSS, Lucide React icons, Recharts, Canvas Confetti.
+- **Frontend:** React 19, TypeScript, Vite 6, Tailwind CSS (with Glassmorphism), Lucide React icons, Recharts, Canvas Confetti.
 - **Backend:** Node.js, Fastify, TypeScript, `@fastify/multipart`, `@fastify/static`, `@fastify/cors`.
 - **Database & ORM:** Drizzle ORM with SQLite (`better-sqlite3`) for instant, zero-friction local execution (interchangeable with PostgreSQL via `DATABASE_URL`).
 - **Compliance & Rule Engine:** Modular `@sih/compliance-engine` evaluating mandatory Rule 6 declarations (MRP, Net Quantity, Mfg Date, Consumer Care, USP) and Rule 7/8 minimum character height calibration tables.
 - **Report Generation:** `PDFKit` generating formal Government Legal Metrology Inspection & Compliance PDF dossiers with statutory disclaimers.
+
+### Recent Feature Additions (bps-kruthi)
+- 📸 **Live Webcam Integration:** Direct browser camera capture using HTML5 MediaDevices API on the Consumer Scanner for seamless label scanning on mobile devices.
+- 📰 **Food Industry Bulletins API:** Real-time updates and advisory feeds (`/api/bulletins`) directly integrated into the landing page.
+- 🎨 **Premium UI/UX Polish:** Transformed the authentication page and dashboards (Manufacturer & Government) with modern glassmorphism panels (`backdrop-blur`), animated glow effects, and professional Lucide SVG iconography.
 
 ---
 
@@ -105,7 +110,16 @@ npm run dev
 
 ---
 
-## 7. Statutory References Enforced
+## 7. Recent Features & Upgrades
+
+- **Live News Integration:** Real-time Food Safety News fetched securely from a live RSS feed and rendered as interactive, clickable toasts and dashboard feeds.
+- **Protector Points (Gamification):** Users are incentivized to file genuine grievances with "Protector Points" and earn prestigious titles like "Food Safety Guardian".
+- **Premium Glassmorphism UI:** Complete overhaul of the authentication page, dashboards, and modal interfaces utilizing translucent glass-panel designs, animated background glows, and crisp interactive SVG iconography.
+- **Webcam Scanning Engine:** Native HTML5 `getUserMedia` integration allowing consumers to snap pictures of physical products live using their smartphone or desktop cameras.
+
+---
+
+## 8. Statutory References Enforced
 - **Rule 6(1)(a):** Name & address of the manufacturer/packer/importer.
 - **Rule 6(1)(c) & Rule 12:** Net quantity in standard metric units.
 - **Rule 6(1)(d):** Month and year of manufacture or pre-packing.

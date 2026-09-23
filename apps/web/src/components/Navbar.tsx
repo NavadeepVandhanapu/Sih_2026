@@ -29,49 +29,49 @@ export const Navbar: React.FC = () => {
     <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-100">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-2.5 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-sm">
-            <ScanLine className="w-4 h-4" />
-          </div>
-          <span className="font-display font-extrabold text-base tracking-tight text-slate-900">
-            VidhiTrace
-          </span>
-          <span className="text-[10px] font-bold text-slate-400 font-mono">SIH26034</span>
+        <Link to="/" className="flex items-center shrink-0">
+          <img 
+            src="/vidhitrace-logo-original.png" 
+            alt="VidhiTrace" 
+            className="h-10 sm:h-12 w-auto object-contain hover:scale-105 transition-transform" 
+          />
         </Link>
 
-        {/* Minimal Role Switcher Segmented Control */}
-        <div className="flex items-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 text-xs font-semibold">
-          <button
-            onClick={() => handleRoleClick('CONSUMER')}
-            className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
-              user?.role === 'CONSUMER'
-                ? 'bg-white text-slate-900 shadow-sm font-bold'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <span>Consumer</span>
-          </button>
-          <button
-            onClick={() => handleRoleClick('COMPANY')}
-            className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
-              user?.role === 'COMPANY'
-                ? 'bg-white text-slate-900 shadow-sm font-bold'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <span>Manufacturer</span>
-          </button>
-          <button
-            onClick={() => handleRoleClick('GOVERNMENT_OFFICER')}
-            className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
-              user?.role === 'GOVERNMENT_OFFICER'
-                ? 'bg-white text-slate-900 shadow-sm font-bold'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <span>Officer</span>
-          </button>
-        </div>
+        {/* Minimal Role Switcher Segmented Control (Hidden on Landing Page) */}
+        {location.pathname !== '/' && (
+          <div className="flex items-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 text-xs font-semibold">
+            <button
+              onClick={() => handleRoleClick('CONSUMER')}
+              className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                user?.role === 'CONSUMER'
+                  ? 'bg-white text-slate-900 shadow-sm font-bold'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span>Consumer</span>
+            </button>
+            <button
+              onClick={() => handleRoleClick('COMPANY')}
+              className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                user?.role === 'COMPANY'
+                  ? 'bg-white text-slate-900 shadow-sm font-bold'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span>Manufacturer</span>
+            </button>
+            <button
+              onClick={() => handleRoleClick('GOVERNMENT_OFFICER')}
+              className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                user?.role === 'GOVERNMENT_OFFICER'
+                  ? 'bg-white text-slate-900 shadow-sm font-bold'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span>Officer</span>
+            </button>
+          </div>
+        )}
 
         {/* Minimal Context Nav */}
         <div className="hidden sm:flex items-center gap-1 text-xs">
@@ -86,7 +86,21 @@ export const Navbar: React.FC = () => {
             Home
           </Link>
 
-          {user?.role === 'CONSUMER' && (
+          {location.pathname === '/' && (
+            <>
+              <a href="#about" className="text-xs font-semibold px-3 py-1.5 rounded-lg transition text-slate-500 hover:text-slate-900">
+                About
+              </a>
+              <a href="#team" className="text-xs font-semibold px-3 py-1.5 rounded-lg transition text-slate-500 hover:text-slate-900">
+                Team
+              </a>
+              <a href="#contact" className="text-xs font-semibold px-3 py-1.5 rounded-lg transition text-slate-500 hover:text-slate-900">
+                Contact Us
+              </a>
+            </>
+          )}
+
+          {user?.role === 'CONSUMER' && location.pathname !== '/' && (
             <>
               <Link to="/consumer" className={navLinkClass('/consumer')}>
                 Scanner
@@ -96,7 +110,7 @@ export const Navbar: React.FC = () => {
               </Link>
             </>
           )}
-          {user?.role === 'COMPANY' && (
+          {user?.role === 'COMPANY' && location.pathname !== '/' && (
             <>
               <Link to="/company" className={navLinkClass('/company')}>
                 Overview
@@ -109,7 +123,7 @@ export const Navbar: React.FC = () => {
               </Link>
             </>
           )}
-          {user?.role === 'GOVERNMENT_OFFICER' && (
+          {user?.role === 'GOVERNMENT_OFFICER' && location.pathname !== '/' && (
             <>
               <Link to="/government" className={navLinkClass('/government')}>
                 Analytics
@@ -122,7 +136,7 @@ export const Navbar: React.FC = () => {
               </Link>
             </>
           )}
-          {user?.role === 'ADMIN' && (
+          {user?.role === 'ADMIN' && location.pathname !== '/' && (
             <>
               <Link to="/admin" className={navLinkClass('/admin')}>
                 Rule Registry
