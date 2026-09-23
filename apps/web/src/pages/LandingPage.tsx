@@ -179,11 +179,31 @@ export const LandingPage: React.FC = () => {
 
   const [bulletins, setBulletins] = useState<any[]>([]);
   const [loadingBulletins, setLoadingBulletins] = useState(false);
+  const [currentPopupIndex, setCurrentPopupIndex] = useState<number>(0);
+  const [showPopup, setShowPopup] = useState(false);
 
-  const fetchBulletins = async () => {
-    setLoadingBulletins(true);
+  useEffect(() => {
+    fetchBulletins(true);
+  }, []);
+
+  useEffect(() => {
+    if (bulletins.length > 0) {
+      const interval = setInterval(() => {
+        setShowPopup(false);
+        setTimeout(() => {
+          setCurrentPopupIndex((prev) => (prev + 1) % bulletins.length);
+          setShowPopup(true);
+        }, 500);
+      }, 15000);
+      
+      setTimeout(() => setShowPopup(true), 2000);
+      return () => clearInterval(interval);
+    }
+  }, [bulletins]);
+
+  const fetchBulletins = async (silent = false) => {
+    if (!silent) setLoadingBulletins(true);
     try {
-      // Use the new backend API route we created
       const res = await fetch('/api/bulletins');
       if (res.ok) {
         const data = await res.json();
@@ -192,7 +212,7 @@ export const LandingPage: React.FC = () => {
     } catch (err) {
       console.error('Failed to fetch bulletins:', err);
     } finally {
-      setLoadingBulletins(false);
+      if (!silent) setLoadingBulletins(false);
     }
   };
 
@@ -1125,6 +1145,44 @@ export const LandingPage: React.FC = () => {
           </button>
         </div>
       </section>
+      {/* LIVE NOTIFICATION POPUP */}
+      {bulletins.length > 0 && (
+        <div 
+          className={`fixed bottom-6 right-6 z-50 transition-all duration-500 transform ${
+            showPopup ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0 pointer-events-none'
+          }`}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl shadow-blue-900/5 border border-slate-100 p-4 max-w-sm w-[320px] sm:w-[360px] flex gap-3 relative overflow-hidden group cursor-pointer hover:border-blue-200 transition-colors">
+            <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+            <div className="bg-blue-50 p-2 rounded-xl h-fit shrink-0 mt-0.5">
+              <Bell className="w-4 h-4 text-blue-600 animate-[bounce_2s_infinite]" />
+            </div>
+            <div className="flex-1 min-w-0 pr-4">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 truncate">
+                  {bulletins[currentPopupIndex]?.category || 'LIVE UPDATE'}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                  {bulletins[currentPopupIndex]?.date || 'Just now'}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug mb-1.5 line-clamp-2">
+                {bulletins[currentPopupIndex]?.title}
+              </p>
+              <p className="text-[10px] text-slate-500 truncate flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                Source: {bulletins[currentPopupIndex]?.source}
+              </p>
+            </div>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setShowPopup(false); }}
+              className="absolute top-2 right-2 p-1 text-slate-300 hover:text-slate-500 transition-colors rounded-lg opacity-0 group-hover:opacity-100"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

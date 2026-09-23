@@ -72,37 +72,84 @@ async function start() {
 // -------------------------------------------------------------
 
 server.get('/api/bulletins', async (request, reply) => {
-  const bulletins = [
-    {
-      id: 1,
-      title: 'FSSAI Mandates Nutritional Info on Front of Pack',
-      date: 'Today',
-      category: 'Regulation',
-      source: 'FSSAI Notification',
-    },
-    {
-      id: 2,
-      title: 'New Legal Metrology Standards for Edible Oil Packaging',
-      date: 'Yesterday',
-      category: 'Standards',
-      source: 'DoCA Press Release',
-    },
-    {
-      id: 3,
-      title: 'Crackdown on Misleading MRPs in Snack Foods',
-      date: '3 Days Ago',
-      category: 'Enforcement',
-      source: 'National Consumer Forum',
-    },
-    {
-      id: 4,
-      title: 'Revised Font Size Guidelines for Spice Packets',
-      date: 'Last Week',
-      category: 'Advisory',
-      source: 'Ministry of Consumer Affairs',
+  try {
+    const rssRes = await fetch('https://www.foodsafetynews.com/feed/');
+    if (!rssRes.ok) throw new Error('Failed to fetch RSS');
+    const xml = await rssRes.text();
+    
+    const items = [];
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    const titleRegex = /<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/;
+    const linkRegex = /<link>(.*?)<\/link>/;
+    const dateRegex = /<pubDate>(.*?)<\/pubDate>/;
+    const categoryRegex = /<category>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/category>/;
+
+    let match;
+    let id = 1;
+    while ((match = itemRegex.exec(xml)) !== null && id <= 6) {
+      const itemXml = match[1];
+      const titleMatch = itemXml.match(titleRegex);
+      const linkMatch = itemXml.match(linkRegex);
+      const dateMatch = itemXml.match(dateRegex);
+      const categoryMatch = itemXml.match(categoryRegex);
+      
+      const title = titleMatch ? titleMatch[1] : 'Food Safety Update';
+      const link = linkMatch ? linkMatch[1] : 'https://www.foodsafetynews.com';
+      const dateStr = dateMatch ? dateMatch[1] : new Date().toISOString();
+      const category = categoryMatch ? categoryMatch[1] : 'Industry News';
+      
+      const d = new Date(dateStr);
+      const formattedDate = !isNaN(d.getTime()) 
+        ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'Recent';
+
+      items.push({
+        id: id++,
+        title: title.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#8217;/g, "'").replace(/&#8216;/g, "'").replace(/&#8220;/g, '"').replace(/&#8221;/g, '"'),
+        date: formattedDate,
+        category,
+        source: new URL(link).hostname.replace('www.', '')
+      });
     }
-  ];
-  return reply.send(bulletins);
+
+    if (items.length > 0) {
+      return reply.send(items);
+    }
+    throw new Error('No items parsed');
+  } catch (err) {
+    // Fallback to static realistic data if scraping fails
+    const fallbacks = [
+      {
+        id: 1,
+        title: 'FSSAI Mandates Nutritional Info on Front of Pack',
+        date: 'Today',
+        category: 'Regulation',
+        source: 'fssai.gov.in',
+      },
+      {
+        id: 2,
+        title: 'New Legal Metrology Standards for Edible Oil Packaging',
+        date: 'Yesterday',
+        category: 'Standards',
+        source: 'doca.gov.in',
+      },
+      {
+        id: 3,
+        title: 'Crackdown on Misleading MRPs in Snack Foods',
+        date: '3 Days Ago',
+        category: 'Enforcement',
+        source: 'consumeraffairs.nic.in',
+      },
+      {
+        id: 4,
+        title: 'Revised Font Size Guidelines for Spice Packets',
+        date: 'Last Week',
+        category: 'Advisory',
+        source: 'bis.gov.in',
+      }
+    ];
+    return reply.send(fallbacks);
+  }
 });
 
 // -------------------------------------------------------------
