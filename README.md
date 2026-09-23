@@ -110,7 +110,16 @@ npm run dev
 
 ---
 
-## 7. Statutory References Enforced
+## 7. Recent Features & Upgrades
+
+- **Live News Integration:** Real-time Food Safety News fetched securely from a live RSS feed and rendered as interactive, clickable toasts and dashboard feeds.
+- **Protector Points (Gamification):** Users are incentivized to file genuine grievances with "Protector Points" and earn prestigious titles like "Food Safety Guardian".
+- **Premium Glassmorphism UI:** Complete overhaul of the authentication page, dashboards, and modal interfaces utilizing translucent glass-panel designs, animated background glows, and crisp interactive SVG iconography.
+- **Webcam Scanning Engine:** Native HTML5 `getUserMedia` integration allowing consumers to snap pictures of physical products live using their smartphone or desktop cameras.
+
+---
+
+## 8. Statutory References Enforced
 - **Rule 6(1)(a):** Name & address of the manufacturer/packer/importer.
 - **Rule 6(1)(c) & Rule 12:** Net quantity in standard metric units.
 - **Rule 6(1)(d):** Month and year of manufacture or pre-packing.
