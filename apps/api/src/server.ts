@@ -67,6 +67,37 @@ async function start() {
     });
   }
 
+  // Serve frontend build if available (for all-in-one deployment)
+  let frontendDir = path.resolve(process.cwd(), '..', 'web', 'dist');
+  if (!fs.existsSync(frontendDir)) {
+    // Fallback in case process.cwd() is the repo root
+    frontendDir = path.resolve(process.cwd(), 'apps', 'web', 'dist');
+  }
+
+  if (fs.existsSync(frontendDir)) {
+    console.log('Serving frontend from:', frontendDir);
+    await server.register(fastifyStatic, {
+      root: frontendDir,
+      prefix: '/',
+      decorateReply: false,
+    });
+    
+    server.setNotFoundHandler((request, reply) => {
+      if (request.url.startsWith('/api/') || request.url.startsWith('/uploads/') || request.url.startsWith('/samples/')) {
+        reply.status(404).send({ error: 'Not found' });
+      } else {
+        const indexHtml = path.join(frontendDir, 'index.html');
+        if (fs.existsSync(indexHtml)) {
+          reply.type('text/html').send(fs.createReadStream(indexHtml));
+        } else {
+          reply.status(404).send({ error: 'Not found' });
+        }
+      }
+    });
+  } else {
+    console.log('Warning: Frontend dist directory not found. Is it built?');
+  }
+
 // -------------------------------------------------------------
 // BULLETINS ROUTE
 // -------------------------------------------------------------
@@ -1201,7 +1232,7 @@ server.get('/api/audit-logs', async (_request, reply) => {
 // SERVER STARTUP
 // -------------------------------------------------------------
 
-  const PORT = 3001;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
   const HOST = '0.0.0.0';
 
   try {
