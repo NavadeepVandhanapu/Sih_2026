@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -613,7 +613,7 @@ export const LandingPage: React.FC = () => {
             </div>
             
             <button
-              onClick={fetchBulletins}
+              onClick={() => fetchBulletins(false)}
               disabled={loadingBulletins}
               className="shrink-0 px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold shadow-md transition-all flex items-center gap-2 disabled:opacity-70"
             >

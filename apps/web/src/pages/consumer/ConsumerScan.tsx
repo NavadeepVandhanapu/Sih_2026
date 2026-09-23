@@ -43,6 +43,9 @@ export const ConsumerScan: React.FC = () => {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Gamification state
+  const [protectorToast, setProtectorToast] = useState<{show: boolean, msg: string, pts: number}>({show: false, msg: '', pts: 0});
+
   const startCamera = async () => {
     setIsCameraOpen(true);
     try {
@@ -353,6 +356,9 @@ export const ConsumerScan: React.FC = () => {
       confetti({ particleCount: 50, spread: 60 });
     }
 
+    setProtectorToast({ show: true, msg: 'Food Safety Guardian! Thanks for scanning and verifying compliance.', pts: 10 });
+    setTimeout(() => setProtectorToast(prev => ({...prev, show: false})), 5000);
+
     setIsScanning(false);
   };
 
@@ -381,6 +387,9 @@ export const ConsumerScan: React.FC = () => {
         setFiledComplaintId(data.complaintId);
         setComplaintModalOpen(false);
         confetti({ particleCount: 70, spread: 70 });
+        
+        setProtectorToast({ show: true, msg: 'Genuine Grievance Raised! You are actively protecting consumers and saving lives.', pts: 50 });
+        setTimeout(() => setProtectorToast(prev => ({...prev, show: false})), 5000);
       }
     } catch (err) {
       console.error('Failed to submit complaint:', err);
@@ -703,6 +712,34 @@ export const ConsumerScan: React.FC = () => {
           </div>
         </div>
       )}
+      {/* PROTECTOR TOAST NOTIFICATION */}
+      {protectorToast.show && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl shadow-xl p-1">
+            <div className="bg-slate-900 rounded-xl p-4 flex items-center gap-4 max-w-sm">
+              <div className="bg-emerald-500/20 p-2 rounded-full shrink-0">
+                <Sparkles className="w-6 h-6 text-emerald-400 animate-pulse" />
+              </div>
+              <div>
+                <p className="text-white font-bold text-sm leading-tight mb-1">
+                  {protectorToast.msg}
+                </p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-emerald-400 font-extrabold text-lg">+{protectorToast.pts}</span>
+                  <span className="text-slate-400 text-xs">Protector Points</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setProtectorToast({ ...protectorToast, show: false })}
+                className="absolute top-2 right-2 text-slate-400 hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
