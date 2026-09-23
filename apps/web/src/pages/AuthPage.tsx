@@ -51,6 +51,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const redirectUserByRole = (userRole: Role) => {
     switch (userRole) {
@@ -191,25 +192,41 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
         {/* Card Container - Premium Glassmorphism */}
         <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] border border-white shadow-[0_8px_40px_rgb(0,0,0,0.08)] p-6 sm:p-8 space-y-6">
           {/* Header Brand & Mascot */}
-          <div className="text-center space-y-2">
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-md">
-                <ScanLine className="w-5 h-5" />
+          <div className="text-center space-y-4 relative">
+            {/* Help Button */}
+            <button 
+              onClick={() => setShowHelp(true)}
+              className="absolute right-0 top-0 p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors group"
+              title="What is this platform?"
+            >
+              <AlertCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            </button>
+
+            <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center justify-center gap-1">
+                <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-md">
+                  <ScanLine className="w-6 h-6" />
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center shadow-md -ml-3 border-2 border-white">
+                  <Bot className="w-5 h-5" />
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center shadow-md">
-                <Bot className="w-5 h-5" />
-              </div>
+              <span className="font-display font-extrabold text-2xl tracking-tight text-slate-900">
+                Vidhi<span className="text-blue-600">Trace</span>
+              </span>
             </div>
 
-            <h1 className="font-display font-extrabold text-2xl text-slate-900 tracking-tight">
-              {mode === 'login' ? 'Welcome to VidhiTrace' : 'Create Your Account'}
-            </h1>
+            <div className="space-y-1">
+              <h1 className="font-display font-extrabold text-xl text-slate-800 tracking-tight">
+                {mode === 'login' ? 'Welcome Back' : 'Create Your Account'}
+              </h1>
 
-            <p className="text-xs text-slate-500 max-w-xs mx-auto">
-              {mode === 'login'
-                ? 'Sign in to access AI compliance scanner, manufacturer simulator, and enforcement docket.'
-                : 'Join the national Legal Metrology compliance and citizen protection network.'}
-            </p>
+              <p className="text-[11px] text-slate-500 max-w-[260px] mx-auto leading-relaxed">
+                {mode === 'login'
+                  ? 'Sign in to access the AI compliance scanner and enforcement dockets.'
+                  : 'Join the national Legal Metrology compliance network.'}
+              </p>
+            </div>
           </div>
 
           {/* Mode Switcher Tabs */}
@@ -603,6 +620,78 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
           Department of Consumer Affairs (DoCA) • SIH 2026 Prototype
         </div>
       </div>
+
+      {/* HELP MODAL */}
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" 
+            onClick={() => setShowHelp(false)} 
+          />
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-slate-900">About VidhiTrace</h3>
+              </div>
+              <button onClick={() => setShowHelp(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                <AlertCircle className="w-5 h-5 hidden" />
+                <span className="text-xl leading-none">&times;</span>
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-5">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                VidhiTrace is an AI-powered Legal Metrology engine designed to bridge the gap between consumers, brands, and government regulators.
+              </p>
+              
+              <div className="space-y-4">
+                <div className="flex gap-3 items-start">
+                  <div className="p-2 bg-blue-50 text-blue-600 rounded-lg shrink-0 mt-0.5">
+                    <ShoppingBag className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Consumers</h4>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">Scan product packaging to verify mandatory declarations like MRP, expiry dates, and net quantity. Report violations and earn Protector Points.</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 items-start">
+                  <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg shrink-0 mt-0.5">
+                    <Factory className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Brand Manufacturers</h4>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">Simulate package artwork before printing to ensure it complies with Legal Metrology rules and responds directly to consumer grievances.</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 items-start">
+                  <div className="p-2 bg-amber-50 text-amber-600 rounded-lg shrink-0 mt-0.5">
+                    <Scale className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Government Officers</h4>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">View escalated consumer reports, AI evidence metrics, and issue non-compliance notices efficiently from a centralized docket.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 text-center">
+              <button 
+                onClick={() => setShowHelp(false)}
+                className="px-6 py-2 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-colors w-full sm:w-auto"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
